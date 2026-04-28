@@ -10,6 +10,8 @@ data/ipc_cmd.txt
 data/ipc_response.txt
 data/*.tmp
 
+scripts/
+
 .venv/
 venv/
 env/
