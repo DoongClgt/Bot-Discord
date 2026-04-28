@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Control Dashboard</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #101318;
+            --surface: #171b22;
+            --surface-2: #1f2530;
+            --surface-3: #252d39;
+            --border: #313a48;
+            --border-strong: #465263;
+            --text: #f4f7fb;
+            --muted: #9aa6b5;
+            --muted-2: #748091;
+            --green: #22c55e;
+            --green-dark: #15803d;
+            --red: #ef4444;
+            --red-dark: #b91c1c;
+            --blue: #38bdf8;
+            --blue-dark: #0369a1;
+            --yellow: #f59e0b;
+            --pink: #ec4899;
+            --purple: #8b5cf6;
+            --shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            letter-spacing: 0;
+        }
+
+        button,
+        input,
+        select {
+            font: inherit;
+        }
+
+        button {
+            min-height: 42px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #ffffff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        input,
+        select {
+            width: 100%;
+            min-height: 40px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #111720;
+            color: var(--text);
+            padding: 9px 10px;
+            outline: none;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.14);
+        }
+
+        select[multiple] {
+            min-height: 132px;
+            padding: 6px;
+        }
+
+        select option {
+            background: #121821;
+            color: var(--text);
+        }
+
+        .app-shell {
+            min-height: 100vh;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: var(--muted-2);
+        }
+
+        .status-online .status-dot {
+            background: var(--green);
+            box-shadow: 0 0 16px rgba(34, 197, 94, 0.7);
+        }
+
+        .status-offline .status-dot {
+            background: var(--red);
+            box-shadow: 0 0 16px rgba(239, 68, 68, 0.7);
+        }
+
+        .status-meta {
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .main {
+            min-width: 0;
+            padding: 24px;
+            overflow: auto;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .page-title {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .page-subtitle {
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .tab-nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .tab-button {
+            min-height: 38px;
+            background: transparent;
+            border-color: var(--border);
+            color: var(--muted);
+        }
+
+        .tab-button.active,
+        .tab-button:hover:not(:disabled) {
+            background: var(--surface-2);
+            color: var(--text);
+            border-color: var(--border-strong);
+        }
+
+        .panel {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .panel-header {
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .panel-title {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .panel-note {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .panel-body {
+            padding: 18px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .metric {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface-2);
+            padding: 14px;
+            min-height: 82px;
+        }
+
+        .metric-label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            margin-top: 8px;
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .tab-page {
+            display: grid;
+            gap: 16px;
+        }
+
+        .dashboard-tab {
+            display: none;
+        }
+
+        .dashboard-tab.active {
+            display: grid;
+            gap: 16px;
+        }
+
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(180deg, var(--green), var(--green-dark));
+        }
+
+        .btn-danger {
+            background: linear-gradient(180deg, var(--red), var(--red-dark));
+        }
+
+        .btn-blue {
+            background: linear-gradient(180deg, var(--blue), var(--blue-dark));
+        }
+
+        .btn-purple {
+            background: linear-gradient(180deg, var(--purple), #6d28d9);
+        }
+
+        .btn-pink {
+            background: linear-gradient(180deg, var(--pink), #be185d);
+        }
+
+        .btn-muted {
+            background: var(--surface-3);
+            border-color: var(--border-strong);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .form-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .form-group {
+            min-width: 0;
+        }
+
+        .form-group.full {
+            grid-column: 1 / -1;
+        }
+
+        .inline-group {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 116px;
+            gap: 10px;
+        }
+
+        .progress-wrap {
+            display: none;
+            margin-top: 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #111720;
+            padding: 12px;
+        }
+
+        .progress-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .progress-track {
+            height: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #0b1017;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--green), var(--blue));
+            transition: width 0.3s ease;
+        }
+
+        .progress-detail {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .notice {
+            position: fixed;
+            right: 22px;
+            bottom: 22px;
+            z-index: 10;
+            max-width: min(420px, calc(100vw - 32px));
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #0d1117;
+            color: var(--text);
+            padding: 12px 14px;
+            box-shadow: var(--shadow);
+            opacity: 0;
+            transform: translateY(8px);
+            pointer-events: none;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+
+        .notice.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .hint {
+            min-height: 16px;
+            margin-top: 5px;
+            color: var(--green);
+            font-size: 12px;
+        }
+
+        .readonly-list {
+            min-height: 42px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #111720;
+            color: var(--text);
+            padding: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .readonly-chip {
+            max-width: 100%;
+            border: 1px solid var(--border-strong);
+            border-radius: 8px;
+            background: var(--surface-2);
+            padding: 6px 8px;
+            color: var(--text);
+            font-size: 13px;
+            overflow-wrap: anywhere;
+        }
+
+        .readonly-empty {
+            color: var(--muted-2);
+            padding: 4px 2px;
+            font-size: 13px;
+        }
+
+        .log-table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #111720;
+        }
+
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 760px;
+            font-size: 13px;
+        }
+
+        .log-table th,
+        .log-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .log-table th {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            background: var(--surface-2);
+        }
+
+        .log-level {
+            display: inline-flex;
+            min-width: 52px;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 3px 8px;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .log-level.info {
+            background: var(--blue-dark);
+        }
+
+        .log-level.warn {
+            background: var(--yellow);
+        }
+
+        .log-level.error {
+            background: var(--red-dark);
+        }
+
+        .log-message {
+            color: var(--text);
+            word-break: break-word;
+        }
+
+        .split-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        @media (max-width: 980px) {
+            .metric-grid,
+            .grid-3,
+            .grid-2,
+            .form-grid,
+            .form-grid-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .main {
+                padding: 16px;
+            }
+
+            .topbar {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .top-actions,
+            .tab-nav,
+            .button-row,
+            .split-actions {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-shell">
+        <main class="main">
+            <div class="topbar">
+                <div>
+                    <h1 id="pageTitle" class="page-title">Bot Control</h1>
+                    <div id="pageSubtitle" class="page-subtitle">Theo doi bot, dieu khien nhanh va xem log.</div>
+                </div>
+                <div class="top-actions">
+                    <button id="btnStart" class="btn-primary" onclick="startBot()">Start bot</button>
+                    <button id="btnStop" class="btn-danger" onclick="stopBot()">Shutdown</button>
+                </div>
+            </div>
+
+            <div class="tab-nav">
+                <button class="tab-button active" type="button" data-dashboard-tab="control" onclick="switchDashboardTab('control')">Dieu khien</button>
+                <button class="tab-button" type="button" data-dashboard-tab="logs" onclick="switchDashboardTab('logs')">Log gan day</button>
+            </div>
+
+            <div id="dashboard-control" class="dashboard-tab active">
+            <section id="tab-overview" class="tab-page">
+                <div class="metric-grid">
+                    <div class="metric">
+                        <div class="metric-label">Trang thai</div>
+                        <div id="metricStatus" class="metric-value">Checking</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Process ID</div>
+                        <div id="metricPid" class="metric-value">-</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Kenh da cache</div>
+                        <div id="metricChannels" class="metric-value">-</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Lan cap nhat UI</div>
+                        <div id="metricTime" class="metric-value">-</div>
+                    </div>
+                </div>
+
+                <div class="grid">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title">Tac vu nhanh</h2>
+                            <span class="panel-note">Gui lenh qua IPC den bot dang chay</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="button-row">
+                                <button id="btnRefreshChannels" class="btn-blue" onclick="sendRefreshChannels()">Quet lai kenh</button>
+                                <button id="btnSteamDB" class="btn-purple" onclick="sendSteamDBCheck()">Check Steam patch</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-settings" class="tab-page">
+                <form id="settingsForm" class="grid">
+                    <div class="split-actions">
+                        <button type="button" class="btn-primary" onclick="saveSettings()">Luu va restart bot</button>
+                        <button type="button" class="btn-blue" onclick="loadSettings()">Tai lai cau hinh</button>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title">Muc tieu va loc tin</h2>
+                            <span class="panel-note">ID kenh/role chi sua trong .env</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-grid">
+                                <div class="form-group full">
+                                    <label for="DISCORD_TOKEN">Bot token</label>
+                                    <input type="password" id="DISCORD_TOKEN" name="DISCORD_TOKEN" placeholder="Discord bot token">
+                                </div>
+                                <div class="form-group full">
+                                    <label for="TARGET_KEYWORDS">Tu khoa vi pham</label>
+                                    <input type="text" id="TARGET_KEYWORDS" name="TARGET_KEYWORDS" placeholder="bad word usage, too many infractions">
+                                </div>
+                                <div class="form-group">
+                                    <label for="TARGET_USER_ID">ID muc tieu</label>
+                                    <input type="text" id="TARGET_USER_ID" name="TARGET_USER_ID" placeholder="1222619860585152604">
+                                    <div class="hint" data-hint-for="TARGET_USER_ID"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="SUSPECT_ROLE_NAME">Ten role nghi pham</label>
+                                    <input type="text" id="SUSPECT_ROLE_NAME" name="SUSPECT_ROLE_NAME">
+                                </div>
+                                <div class="form-group">
+                                    <label for="TARGET_CATEGORY_IDS">Danh muc ap dung</label>
+                                    <input type="hidden" id="TARGET_CATEGORY_IDS" name="TARGET_CATEGORY_IDS">
+                                    <div class="readonly-list" data-display-for="TARGET_CATEGORY_IDS"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="EXCLUDED_CHANNEL_IDS">Kenh bo qua</label>
+                                    <input type="hidden" id="EXCLUDED_CHANNEL_IDS" name="EXCLUDED_CHANNEL_IDS">
+                                    <div class="readonly-list" data-display-for="EXCLUDED_CHANNEL_IDS"></div>
+                                </div>
+                                <div class="form-group full">
+                                    <label for="SPAM_TRAP_CHANNEL_ID">Kenh bay spam</label>
+                                    <input type="hidden" id="SPAM_TRAP_CHANNEL_ID" name="SPAM_TRAP_CHANNEL_ID">
+                                    <input type="hidden" id="SPAM_TRAP_CHANNEL_ID_2" name="SPAM_TRAP_CHANNEL_ID_2">
+                                    <div class="readonly-list" data-display-for-many="SPAM_TRAP_CHANNEL_ID,SPAM_TRAP_CHANNEL_ID_2"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="SUSPECT_CHANNEL_ID">Kenh nghi pham</label>
+                                    <input type="hidden" id="SUSPECT_CHANNEL_ID" name="SUSPECT_CHANNEL_ID">
+                                    <div class="readonly-list" data-display-for="SUSPECT_CHANNEL_ID"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title">Kenh thong bao va log</h2>
+                            <span class="panel-note">Hien ten theo ID trong .env</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-grid-3">
+                                <div class="form-group">
+                                    <label for="GENERAL_LOG_CHANNEL_ID">Log chung</label>
+                                    <input type="hidden" id="GENERAL_LOG_CHANNEL_ID" name="GENERAL_LOG_CHANNEL_ID">
+                                    <div class="readonly-list" data-display-for="GENERAL_LOG_CHANNEL_ID"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="BAN_LOG_CHANNEL_ID">Log ban</label>
+                                    <input type="hidden" id="BAN_LOG_CHANNEL_ID" name="BAN_LOG_CHANNEL_ID">
+                                    <div class="readonly-list" data-display-for="BAN_LOG_CHANNEL_ID"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="STARTUP_CHANNEL_ID">Thong bao startup</label>
+                                    <input type="hidden" id="STARTUP_CHANNEL_ID" name="STARTUP_CHANNEL_ID">
+                                    <div class="readonly-list" data-display-for="STARTUP_CHANNEL_ID"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="BAN_LOG_THREAD_ID">Thread banned</label>
+                                    <input type="hidden" id="BAN_LOG_THREAD_ID" name="BAN_LOG_THREAD_ID">
+                                    <div class="readonly-list" data-display-for="BAN_LOG_THREAD_ID"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="DELETE_LOG_THREAD_ID">Thread xoa tin</label>
+                                    <input type="hidden" id="DELETE_LOG_THREAD_ID" name="DELETE_LOG_THREAD_ID">
+                                    <div class="readonly-list" data-display-for="DELETE_LOG_THREAD_ID"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title">Steam patch watcher</h2>
+                            <span class="panel-note">Kenh sua trong .env, mac dinh 12 tieng</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="STEAMDB_PATCH_CHANNEL_ID">Kenh nhan patch</label>
+                                    <input type="hidden" id="STEAMDB_PATCH_CHANNEL_ID" name="STEAMDB_PATCH_CHANNEL_ID">
+                                    <div class="readonly-list" data-display-for="STEAMDB_PATCH_CHANNEL_ID"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="STEAMDB_PATCH_SCHEDULE_HOURS">Gio check co dinh</label>
+                                    <input type="text" id="STEAMDB_PATCH_SCHEDULE_HOURS" name="STEAMDB_PATCH_SCHEDULE_HOURS" placeholder="0,6,12,18">
+                                </div>
+                                <div class="form-group">
+                                    <label for="STEAMDB_APP_IDS">Steam App IDs</label>
+                                    <input type="hidden" id="STEAMDB_APP_IDS" name="STEAMDB_APP_IDS">
+                                    <div class="readonly-list" data-steam-app-display="STEAMDB_APP_IDS"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="STEAMDB_PATCH_LIMIT">So muc doc moi lan</label>
+                                    <input type="number" id="STEAMDB_PATCH_LIMIT" name="STEAMDB_PATCH_LIMIT" min="5" max="100" placeholder="25">
+                                </div>
+                                <div class="form-group">
+                                    <label for="STEAMDB_PATCH_MAJOR_ONLY">Chi major patches</label>
+                                    <select id="STEAMDB_PATCH_MAJOR_ONLY" name="STEAMDB_PATCH_MAJOR_ONLY">
+                                        <option value="false">false</option>
+                                        <option value="true">true</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </form>
+            </section>
+            </div>
+
+            <div id="dashboard-logs" class="dashboard-tab">
+                <section class="tab-page">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title">Log gan day</h2>
+                            <button id="btnRefreshLogs" class="btn-muted" onclick="loadLogs()">Tai lai log</button>
+                        </div>
+                        <div class="panel-body">
+                            <div class="log-table-wrap">
+                                <table class="log-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Thoi gian</th>
+                                            <th>Muc</th>
+                                            <th>Su kien</th>
+                                            <th>Noi dung</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="logTableBody">
+                                        <tr>
+                                            <td colspan="4" class="readonly-empty">Chua co log.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+        </main>
+    </div>
+
+    <div id="notification" class="notice">Ready.</div>
+
+    <script>
+        const statusEls = {
+            metricStatus: document.getElementById('metricStatus'),
+            metricPid: document.getElementById('metricPid'),
+            metricChannels: document.getElementById('metricChannels'),
+            metricTime: document.getElementById('metricTime'),
+            btnStart: document.getElementById('btnStart'),
+            btnStop: document.getElementById('btnStop')
+        };
+
+        let channelMap = {};
+        let lastConfig = {};
+        let notificationTimer = null;
+        let commandPollTimer = null;
+        let progressPollTimer = null;
+
+        function switchDashboardTab(tabName) {
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.dashboardTab === tabName);
+            });
+            document.querySelectorAll('.dashboard-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.id === 'dashboard-' + tabName);
+            });
+            if (tabName === 'logs') {
+                loadLogs();
+            }
+        }
+
+        function showNotification(message) {
+            const box = document.getElementById('notification');
+            box.textContent = message || 'Ready.';
+            box.classList.add('show');
+            clearTimeout(notificationTimer);
+            notificationTimer = setTimeout(() => box.classList.remove('show'), 4500);
+        }
+
+        function nowText() {
+            return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function setStatus(state, pid) {
+            if (state === 'online') {
+                statusEls.metricStatus.textContent = 'Online';
+                statusEls.metricPid.textContent = pid;
+                statusEls.btnStart.disabled = true;
+                statusEls.btnStop.disabled = false;
+            } else {
+                statusEls.metricStatus.textContent = state === 'disconnected' ? 'Disconnected' : 'Offline';
+                statusEls.metricPid.textContent = '-';
+                statusEls.btnStart.disabled = false;
+                statusEls.btnStop.disabled = true;
+            }
+            statusEls.metricTime.textContent = nowText();
+        }
+
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                setStatus(data.status, data.pid || '-');
+            } catch (err) {
+                setStatus('disconnected', '-');
+            }
+        }
+
+        async function startBot() {
+            statusEls.btnStart.disabled = true;
+            showNotification('Dang khoi dong bot...');
+            try {
+                const res = await fetch('/api/start', { method: 'POST' });
+                const data = await res.json();
+                showNotification(data.message);
+                setTimeout(fetchStatus, 1500);
+            } catch (err) {
+                showNotification('Khong gui duoc lenh start.');
+                statusEls.btnStart.disabled = false;
+            }
+        }
+
+        async function stopBot() {
+            statusEls.btnStop.disabled = true;
+            showNotification('Dang tat bot...');
+            try {
+                const res = await fetch('/api/stop', { method: 'POST' });
+                const data = await res.json();
+                showNotification(data.message);
+                setTimeout(fetchStatus, 1200);
+            } catch (err) {
+                showNotification('Khong gui duoc lenh shutdown.');
+                statusEls.btnStop.disabled = false;
+            }
+        }
+
+        async function postCommand(command, args) {
+            const res = await fetch('/api/command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command, args: args || {} })
+            });
+            const data = await res.json();
+            showNotification(data.message);
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Command failed');
+            }
+            return data;
+        }
+
+        function setButtonBusy(ids, busy, label) {
+            ids.forEach(id => {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                btn.disabled = busy;
+                if (label) {
+                    if (!btn.dataset.originalText) btn.dataset.originalText = btn.textContent;
+                    btn.textContent = busy ? label : btn.dataset.originalText;
+                }
+            });
+        }
+
+        function pollCommandResult(onDone) {
+            clearInterval(commandPollTimer);
+            commandPollTimer = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/command_result');
+                    const data = await res.json();
+                    if (data.done) {
+                        clearInterval(commandPollTimer);
+                        showNotification(data.message);
+                        if (onDone) onDone(data.message);
+                    }
+                } catch (err) {
+                    clearInterval(commandPollTimer);
+                    if (onDone) onDone(null, err);
+                }
+            }, 2500);
+        }
+
+        async function sendSteamDBCheck() {
+            setButtonBusy(['btnSteamDB'], true, 'Dang check...');
+            try {
+                await postCommand('steamdb_check');
+                pollCommandResult(() => setButtonBusy(['btnSteamDB'], false));
+            } catch (err) {
+                setButtonBusy(['btnSteamDB'], false);
+            }
+        }
+
+        async function sendRefreshChannels() {
+            setButtonBusy(['btnRefreshChannels'], true, 'Dang quet...');
+            try {
+                await postCommand('refresh_channels');
+                pollCommandResult(async () => {
+                    await loadChannels();
+                    populateSettingsDropdowns();
+                    setButtonBusy(['btnRefreshChannels'], false);
+                });
+            } catch (err) {
+                setButtonBusy(['btnRefreshChannels'], false);
+            }
+        }
+
+        async function loadChannels() {
+            try {
+                const res = await fetch('/api/channels');
+                channelMap = await res.json();
+                statusEls.metricChannels.textContent = Object.keys(channelMap).length;
+            } catch (err) {
+                channelMap = {};
+                statusEls.metricChannels.textContent = '-';
+            }
+        }
+
+        function setTextCell(row, text, className) {
+            const cell = document.createElement('td');
+            if (className) cell.className = className;
+            cell.textContent = text || '';
+            row.appendChild(cell);
+            return cell;
+        }
+
+        async function loadLogs() {
+            const body = document.getElementById('logTableBody');
+            if (!body) return;
+            try {
+                const res = await fetch('/api/logs?limit=100');
+                const logs = await res.json();
+                body.innerHTML = '';
+                if (!logs.length) {
+                    const row = document.createElement('tr');
+                    const cell = document.createElement('td');
+                    cell.colSpan = 4;
+                    cell.className = 'readonly-empty';
+                    cell.textContent = 'Chua co log.';
+                    row.appendChild(cell);
+                    body.appendChild(row);
+                    return;
+                }
+                logs.forEach(item => {
+                    const row = document.createElement('tr');
+                    setTextCell(row, item.time || '-');
+                    const levelCell = document.createElement('td');
+                    const badge = document.createElement('span');
+                    const level = String(item.level || 'info').toLowerCase();
+                    badge.className = 'log-level ' + level;
+                    badge.textContent = level;
+                    levelCell.appendChild(badge);
+                    row.appendChild(levelCell);
+                    setTextCell(row, item.event || '-');
+                    setTextCell(row, item.message || '', 'log-message');
+                    body.appendChild(row);
+                });
+            } catch (err) {
+                body.innerHTML = '<tr><td colspan="4" class="readonly-empty">Khong tai duoc log.</td></tr>';
+            }
+        }
+
+        function splitIds(value) {
+            return String(value || '').split(',').map(s => s.trim()).filter(Boolean);
+        }
+
+        function ensureSelectValue(selectEl, value) {
+            if (!selectEl || !value) return;
+            if (!selectEl.options) {
+                selectEl.value = value;
+                return;
+            }
+            if (selectEl.multiple) {
+                splitIds(value).forEach(id => ensureSelectValue(selectEl, id));
+                return;
+            }
+            const exists = Array.from(selectEl.options).some(opt => opt.value === value);
+            if (!exists) {
+                const opt = document.createElement('option');
+                opt.value = value;
+                opt.textContent = channelMap[value] || ('ID: ' + value);
+                selectEl.appendChild(opt);
+            }
+        }
+
+        function fillSelect(selectId, items, keepFirst) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            const first = keepFirst && sel.options.length ? sel.options[0].cloneNode(true) : null;
+            sel.innerHTML = '';
+            if (first) sel.appendChild(first);
+            for (const [id, name] of Object.entries(items)) {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = name;
+                sel.appendChild(opt);
+            }
+        }
+
+        function classifyChannels() {
+            const categories = {};
+            const channels = {};
+            const roles = {};
+            const users = {};
+            for (const [id, name] of Object.entries(channelMap)) {
+                if (name.startsWith('📂') || name.startsWith('Category:')) categories[id] = name;
+                else if (name.startsWith('#') || name.startsWith('💬') || name.startsWith('Thread:')) channels[id] = name;
+                else if (name.startsWith('🛡') || name.startsWith('Role:')) roles[id] = name;
+                else if (name.startsWith('👤') || name.startsWith('User:')) users[id] = name;
+            }
+            return { categories, channels, roles, users };
+        }
+
+        function populateSettingsDropdowns() {
+            renderReadOnlyDisplays();
+        }
+
+        async function loadSettings() {
+            await loadChannels();
+            populateSettingsDropdowns();
+            try {
+                const res = await fetch('/api/config');
+                const config = await res.json();
+                lastConfig = config;
+                for (const [key, value] of Object.entries(config)) {
+                    const el = document.getElementById(key);
+                    if (!el) continue;
+                    if (el.tagName === 'SELECT' && el.multiple) {
+                        ensureSelectValue(el, value);
+                        const ids = splitIds(value);
+                        Array.from(el.options).forEach(opt => {
+                            opt.selected = ids.includes(opt.value);
+                        });
+                    } else if (el.tagName === 'SELECT') {
+                        ensureSelectValue(el, value);
+                        el.value = value || '';
+                    } else {
+                        el.value = value || '';
+                    }
+                }
+                applyConfigFallbacks(config);
+                renderReadOnlyDisplays();
+                updateHints();
+            } catch (err) {
+                showNotification('Khong tai duoc cau hinh.');
+            }
+        }
+
+        function applyConfigFallbacks(config) {
+            ['TARGET_USER_ID', 'SUSPECT_ROLE_NAME'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && config[id] && !el.value) el.value = config[id];
+            });
+            ['SPAM_TRAP_CHANNEL_ID', 'SPAM_TRAP_CHANNEL_ID_2', 'SUSPECT_CHANNEL_ID', 'STEAMDB_PATCH_CHANNEL_ID'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el || !config[id]) return;
+                el.value = config[id];
+            });
+        }
+
+        function renderReadOnlyDisplays() {
+            document.querySelectorAll('[data-display-for]').forEach(box => {
+                const fieldId = box.dataset.displayFor;
+                const field = document.getElementById(fieldId);
+                const ids = splitIds(field ? field.value : '');
+                box.innerHTML = '';
+                if (!ids.length) {
+                    const empty = document.createElement('span');
+                    empty.className = 'readonly-empty';
+                    empty.textContent = 'Chua cau hinh trong .env';
+                    box.appendChild(empty);
+                    return;
+                }
+                ids.forEach(id => {
+                    const chip = document.createElement('span');
+                    chip.className = 'readonly-chip';
+                    chip.textContent = channelMap[id] || ('ID: ' + id);
+                    box.appendChild(chip);
+                });
+            });
+            document.querySelectorAll('[data-display-for-many]').forEach(box => {
+                const fieldIds = box.dataset.displayForMany.split(',').map(id => id.trim()).filter(Boolean);
+                const ids = fieldIds.flatMap(fieldId => {
+                    const field = document.getElementById(fieldId);
+                    return splitIds(field ? field.value : '');
+                }).filter((id, index, list) => id && list.indexOf(id) === index);
+                box.innerHTML = '';
+                if (!ids.length) {
+                    const empty = document.createElement('span');
+                    empty.className = 'readonly-empty';
+                    empty.textContent = 'Chua cau hinh trong .env';
+                    box.appendChild(empty);
+                    return;
+                }
+                ids.forEach(id => {
+                    const chip = document.createElement('span');
+                    chip.className = 'readonly-chip';
+                    chip.textContent = channelMap[id] || ('ID: ' + id);
+                    box.appendChild(chip);
+                });
+            });
+            renderSteamAppDisplays();
+        }
+
+        function parseSteamAppEntries(value) {
+            return splitIds(value).map(item => {
+                const match = item.match(/^(\d+)(?:[_:\-|]\s*(.+))?$/);
+                if (!match) return null;
+                return {
+                    id: match[1],
+                    name: (match[2] || ('Steam App ' + match[1])).trim()
+                };
+            }).filter(Boolean);
+        }
+
+        function renderSteamAppDisplays() {
+            document.querySelectorAll('[data-steam-app-display]').forEach(box => {
+                const fieldId = box.dataset.steamAppDisplay;
+                const field = document.getElementById(fieldId);
+                const entries = parseSteamAppEntries(field ? field.value : '');
+                box.innerHTML = '';
+                if (!entries.length) {
+                    const empty = document.createElement('span');
+                    empty.className = 'readonly-empty';
+                    empty.textContent = 'Chua co game. Dung /game add <app_id> tren Discord.';
+                    box.appendChild(empty);
+                    return;
+                }
+                entries.forEach((entry, index) => {
+                    const chip = document.createElement('span');
+                    chip.className = 'readonly-chip';
+                    chip.textContent = (index + 1) + '. ' + entry.id + ' - ' + entry.name;
+                    box.appendChild(chip);
+                });
+            });
+        }
+
+        function updateHints() {
+            document.querySelectorAll('[data-hint-for]').forEach(hint => {
+                const id = hint.dataset.hintFor;
+                const el = document.getElementById(id);
+                if (!el) return;
+                const update = () => {
+                    const names = splitIds(el.value).map(value => channelMap[value]).filter(Boolean);
+                    hint.textContent = names.length ? names.join(', ') : '';
+                };
+                el.oninput = update;
+                el.onchange = update;
+                update();
+            });
+        }
+
+        async function saveSettings() {
+            const form = document.getElementById('settingsForm');
+            const data = {};
+            form.querySelectorAll('input').forEach(input => {
+                if (input.name) {
+                    data[input.name] = input.type === 'hidden' && !input.value && lastConfig[input.name]
+                        ? lastConfig[input.name]
+                        : input.value;
+                }
+            });
+            form.querySelectorAll('select:not([multiple])').forEach(sel => {
+                if (sel.name) data[sel.name] = sel.value;
+            });
+            form.querySelectorAll('select[multiple]').forEach(sel => {
+                if (sel.name) data[sel.name] = Array.from(sel.selectedOptions).map(opt => opt.value).join(', ');
+            });
+
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                showNotification(result.message);
+                setTimeout(fetchStatus, 1500);
+            } catch (err) {
+                showNotification('Khong luu duoc cau hinh.');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadSettings();
+            await loadLogs();
+            fetchStatus();
+            setInterval(fetchStatus, 3000);
+            setInterval(loadLogs, 10000);
+        });
+    </script>
+</body>
+
+</html>
