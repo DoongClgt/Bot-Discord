@@ -102,7 +102,9 @@ BAN_LOG_THREAD_ID=''
 ```
 
 - Spam trap uses `SPAM_TRAP_CHANNEL_ID` and optional `SPAM_TRAP_CHANNEL_ID_2`: any member who chats in either trap channel gets `SUSPECT_ROLE_NAME` and their trap message is deleted.
-- `SUSPECT_CHANNEL_ID` is the second channel for suspects. On startup the bot ensures this channel has `Số mít tơ bít đã ban: <count>`; if a member with `SUSPECT_ROLE_NAME` chats there, the bot deletes the message, bans the member, asks Discord to delete that user's last 60 seconds of messages, writes ban log, and updates the counter.
+- `SUSPECT_CHANNEL_ID` also marks members as suspects: any member who chats there gets `SUSPECT_ROLE_NAME` and their message is deleted.
+- If a member who already has `SUSPECT_ROLE_NAME` chats in either trap channel, the bot deletes the message, bans the member, asks Discord to delete that user's last 60 seconds of messages, writes ban log, and updates the counter.
+- On startup the bot ensures `SUSPECT_CHANNEL_ID` has `Số mít tơ bít đã ban: <count>`.
 - Spam trap ban counter state is stored in `data/spam_trap_state.json`.
 - Auto-delete removes embeds from `TARGET_USER_ID` when embed text contains `TARGET_KEYWORDS`.
 - Auto-delete scope: `TARGET_CATEGORY_IDS`, excluding `EXCLUDED_CHANNEL_IDS`.

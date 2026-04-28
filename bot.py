@@ -336,21 +336,63 @@ async def sync_spam_trap_ban_counter(guild: discord.Guild, increment: bool = Fal
 async def update_spam_trap_ban_counter(guild: discord.Guild):
     await sync_spam_trap_ban_counter(guild, increment=True)
 
+async def ensure_suspect_role(member: discord.Member, reason: str, log_source: str):
+    role, error = await get_or_create_suspect_role(member.guild)
+    had_role = bool(role and role in member.roles)
+    if role and not had_role:
+        try:
+            await member.add_roles(role, reason=reason)
+            log_event("spam_trap", f"Gan role nghi pham cho {member.id} tu {log_source}.")
+        except discord.Forbidden:
+            error = "Bot khong co quyen gan role nghi pham."
+        except discord.HTTPException as e:
+            error = f"Khong gan duoc role nghi pham: {e}"
+    return role, had_role, error
+
+async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audit_reason: str):
+    try:
+        await message.delete()
+    except (discord.Forbidden, discord.HTTPException):
+        pass
+
+    log_msg = (
+        f"**THONG BAO BAN TU DONG**\n"
+        f"Nghi pham: {message.author.mention} (`{message.author.id}`)\n"
+        f"Ly do: {reason_text}"
+    )
+    try:
+        await message.guild.ban(
+            message.author,
+            reason=audit_reason,
+            delete_message_seconds=60,
+        )
+        if not BAN_LOG_THREAD_ID:
+            await send_configured_ban_log(message.guild, log_msg)
+        await update_spam_trap_ban_counter(message.guild)
+        log_event("spam_trap_ban", f"Da ban {message.author.id}: {reason_text}")
+    except discord.Forbidden:
+        await send_configured_ban_log(message.guild, f"Khong ban duoc {message.author.mention}: bot thieu quyen Ban Members hoac role thap.")
+    except discord.HTTPException as e:
+        await send_configured_ban_log(message.guild, f"Khong ban duoc {message.author.mention}: {e}")
+
 async def handle_spam_trap_message(message: discord.Message, actual_channel_id: int):
     if not isinstance(message.author, discord.Member) or not message.guild:
         return False
 
     if actual_channel_id in SPAM_TRAP_CHANNEL_IDS:
-        role, error = await get_or_create_suspect_role(message.guild)
-        had_role = bool(role and role in message.author.roles)
-        if role and not had_role:
-            try:
-                await message.author.add_roles(role, reason="User sent a message in spam trap channel")
-                log_event("spam_trap", f"Gan role nghi pham cho {message.author.id} tu kenh bay.")
-            except discord.Forbidden:
-                error = "Bot khong co quyen gan role nghi pham."
-            except discord.HTTPException as e:
-                error = f"Khong gan duoc role nghi pham: {e}"
+        role, had_role, error = await ensure_suspect_role(
+            message.author,
+            "User sent a message in spam trap channel",
+            "kenh bay",
+        )
+
+        if role and had_role:
+            await ban_spam_trap_suspect(
+                message,
+                "Nghi pham da chat trong kenh bay.",
+                "Spam trap: nghi pham chat trong kenh bay",
+            )
+            return True
 
         try:
             await message.delete()
@@ -362,34 +404,19 @@ async def handle_spam_trap_message(message: discord.Message, actual_channel_id: 
         return True
 
     if SUSPECT_CHANNEL_ID and actual_channel_id == SUSPECT_CHANNEL_ID:
-        role = discord.utils.get(message.guild.roles, name=SUSPECT_ROLE_NAME)
-        if not role or role not in message.author.roles:
-            return False
+        role, had_role, error = await ensure_suspect_role(
+            message.author,
+            "User sent a message in suspect channel",
+            "kenh nghi pham",
+        )
 
         try:
             await message.delete()
         except (discord.Forbidden, discord.HTTPException):
             pass
 
-        log_msg = (
-            f"**THONG BAO BAN TU DONG**\n"
-            f"Nghi pham: {message.author.mention} (`{message.author.id}`)\n"
-            f"Ly do: Da chat tiep trong kenh danh rieng cho nghi pham."
-        )
-        try:
-            await message.guild.ban(
-                message.author,
-                reason="Spam trap: nghi pham chat tiep trong kenh nghi pham",
-                delete_message_seconds=60,
-            )
-            if not BAN_LOG_THREAD_ID:
-                await send_configured_ban_log(message.guild, log_msg)
-            await update_spam_trap_ban_counter(message.guild)
-            log_event("spam_trap_ban", f"Da ban {message.author.id} sau khi chat trong kenh nghi pham.")
-        except discord.Forbidden:
-            await send_configured_ban_log(message.guild, f"Khong ban duoc {message.author.mention}: bot thieu quyen Ban Members hoac role thap.")
-        except discord.HTTPException as e:
-            await send_configured_ban_log(message.guild, f"Khong ban duoc {message.author.mention}: {e}")
+        if error:
+            await send_general_log(message.guild, f"Spam trap loi voi {message.author.mention}: {error}")
         return True
 
     return False
