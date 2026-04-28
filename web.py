@@ -11,17 +11,21 @@ import time
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 ENV_FILE = ".env"
+dotenv.load_dotenv(ENV_FILE)
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 os.makedirs(DATA_DIR, exist_ok=True)
 IPC_CMD_FILE = os.path.join(DATA_DIR, 'ipc_cmd.txt')
 IPC_RESPONSE_FILE = os.path.join(DATA_DIR, 'ipc_response.txt')
 CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
 BOT_EVENTS_FILE = os.path.join(DATA_DIR, 'bot_events.log')
+DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
+DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "5000"))
+DASHBOARD_PUBLIC_URL = os.getenv("DASHBOARD_PUBLIC_URL", "").strip()
 
 # File name of the bot to search for
 BOT_FILE = "bot.py"
 BOT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), BOT_FILE)
-CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
+CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == "nt" else 0
 _bot_status_cache = {"checked_at": 0, "pid": None}
 
 def is_bot_running(force=False):
@@ -52,7 +56,13 @@ def start_bot_process():
     return proc
 
 def stop_bot_process(pid):
-    subprocess.run(["taskkill", "/F", "/PID", str(pid)], check=True, capture_output=True, text=True)
+    proc = psutil.Process(pid)
+    proc.terminate()
+    try:
+        proc.wait(timeout=8)
+    except psutil.TimeoutExpired:
+        proc.kill()
+        proc.wait(timeout=5)
     _bot_status_cache["checked_at"] = 0
     _bot_status_cache["pid"] = None
 
@@ -207,6 +217,19 @@ def get_logs():
     return jsonify(read_recent_json_lines(BOT_EVENTS_FILE, limit))
 
 if __name__ == '__main__':
+    local_url = f"http://{DASHBOARD_HOST}:{DASHBOARD_PORT}"
+
+    print("========================================")
+    print("Web dashboard started")
+    print(f"Local URL: {local_url}")
+    if DASHBOARD_PUBLIC_URL:
+        print(f"Public URL: {DASHBOARD_PUBLIC_URL}")
+    print("Cloudflare Tunnel target should point to the local URL above.")
+    print("========================================")
+
+    app.run(host=DASHBOARD_HOST, port=DASHBOARD_PORT, debug=False)
+    sys.exit(0)
+
     # Build list of available IP addresses
     import socket
     try:

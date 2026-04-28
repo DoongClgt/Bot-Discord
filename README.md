@@ -19,6 +19,32 @@ data/ipc_response.txt  Bot -> dashboard command result
 
 Dashboard: `http://127.0.0.1:5000`.
 
+## VPS Dashboard With Cloudflare Tunnel
+
+Recommended `.env` values on the VPS:
+
+```env
+DASHBOARD_HOST='127.0.0.1'
+DASHBOARD_PORT='5000'
+DASHBOARD_PUBLIC_URL='https://bot.example.com'
+```
+
+Keep `DASHBOARD_HOST` as `127.0.0.1` when using Cloudflare Tunnel. The Flask dashboard stays private on the VPS, and `cloudflared` exposes it through your Cloudflare hostname.
+
+Example tunnel target:
+
+```text
+http://127.0.0.1:5000
+```
+
+Run the dashboard:
+
+```bash
+python3 web.py
+```
+
+Then configure Cloudflare Tunnel public hostname to route your domain, for example `bot.example.com`, to `http://127.0.0.1:5000`.
+
 ## Current Shape
 
 - Dashboard is full-width with no left sidebar.
