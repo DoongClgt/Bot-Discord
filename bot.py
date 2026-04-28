@@ -42,9 +42,6 @@ SPAM_TRAP_CHANNEL_ID_2 = int(SPAM_TRAP_CHANNEL_ID_2_STR) if SPAM_TRAP_CHANNEL_ID
 SPAM_TRAP_CHANNEL_IDS = {channel_id for channel_id in (SPAM_TRAP_CHANNEL_ID, SPAM_TRAP_CHANNEL_ID_2) if channel_id}
 SUSPECT_ROLE_NAME = os.getenv('SUSPECT_ROLE_NAME', 'Nghi Phạm')
 
-BAN_LOG_CHANNEL_ID_STR = os.getenv('BAN_LOG_CHANNEL_ID', '')
-BAN_LOG_CHANNEL_ID = int(BAN_LOG_CHANNEL_ID_STR) if BAN_LOG_CHANNEL_ID_STR.isdigit() else 0
-
 BAN_LOG_THREAD_ID_STR = os.getenv('BAN_LOG_THREAD_ID', '')
 BAN_LOG_THREAD_ID = int(BAN_LOG_THREAD_ID_STR) if BAN_LOG_THREAD_ID_STR.isdigit() else 0
 
@@ -278,8 +275,6 @@ async def send_configured_ban_log(guild, log_content):
                 log_channel = await guild.fetch_channel(BAN_LOG_THREAD_ID)
             except Exception:
                 log_channel = None
-    elif BAN_LOG_CHANNEL_ID:
-        log_channel = guild.get_channel(BAN_LOG_CHANNEL_ID) or bot.get_channel(BAN_LOG_CHANNEL_ID)
 
     if log_channel:
         try:
@@ -355,19 +350,12 @@ async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audi
     except (discord.Forbidden, discord.HTTPException):
         pass
 
-    log_msg = (
-        f"**THONG BAO BAN TU DONG**\n"
-        f"Nghi pham: {message.author.mention} (`{message.author.id}`)\n"
-        f"Ly do: {reason_text}"
-    )
     try:
         await message.guild.ban(
             message.author,
             reason=audit_reason,
             delete_message_seconds=60,
         )
-        if not BAN_LOG_THREAD_ID:
-            await send_configured_ban_log(message.guild, log_msg)
         await update_spam_trap_ban_counter(message.guild)
         log_event("spam_trap_ban", f"Da ban {message.author.id}: {reason_text}")
     except discord.Forbidden:
@@ -1504,19 +1492,6 @@ async def on_message(message):
             await message.delete()
             print(f"Đã xóa một tin nhắn nhúng (embed) của: {message.author.name} (ID: {TARGET_USER_ID}) tại kênh {message.channel.name}")
             log_event("auto_delete", f"Da xoa tin cua {message.author.id} tai #{getattr(message.channel, 'name', message.channel.id)}.")
-            
-            log_msg = f"🗑️ **Xóa tin tự động**\nHệ thống đã xóa một tin nhắn nhúng chứa nội dung vi phạm tự động của {message.author.mention} tại kênh {message.channel.mention}."
-            if DELETE_LOG_THREAD_ID:
-                try:
-                    log_channel = bot.get_channel(DELETE_LOG_THREAD_ID)
-                    if not log_channel:
-                        log_channel = await message.guild.fetch_channel(DELETE_LOG_THREAD_ID)
-                    if log_channel:
-                        await log_channel.send(log_msg)
-                except Exception as e:
-                    print(f"Lỗi gửi log xoá tin nhắn nhúng: {e}")
-            else:
-                await send_general_log(message.guild, log_msg)
         except discord.Forbidden:
             print("Lỗi: Bot của bạn chưa có quyền 'Manage Messages' (Quản lý tin nhắn) ở kênh này.")
         except discord.HTTPException as e:

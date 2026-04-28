@@ -97,7 +97,6 @@ SPAM_TRAP_CHANNEL_ID=''
 SPAM_TRAP_CHANNEL_ID_2=''
 SUSPECT_CHANNEL_ID=''
 SUSPECT_ROLE_NAME='Nghi Pham'
-BAN_LOG_CHANNEL_ID=''
 BAN_LOG_THREAD_ID=''
 ```
 
@@ -108,7 +107,7 @@ BAN_LOG_THREAD_ID=''
 - Spam trap ban counter state is stored in `data/spam_trap_state.json`.
 - Auto-delete removes embeds from `TARGET_USER_ID` when embed text contains `TARGET_KEYWORDS`.
 - Auto-delete scope: `TARGET_CATEGORY_IDS`, excluding `EXCLUDED_CHANNEL_IDS`.
-- Delete logs go to `DELETE_LOG_THREAD_ID`, else `GENERAL_LOG_CHANNEL_ID`.
+- Auto-delete writes only to the dashboard event log; it no longer sends Discord delete-log messages.
 - `/dlt [limit]` scans channels and active threads under `TARGET_CATEGORY_IDS`, skips `EXCLUDED_CHANNEL_IDS`, checks up to 500 recent messages per channel/thread, and deletes matching messages from `TARGET_USER_ID`.
 
 ## Steam Watcher
