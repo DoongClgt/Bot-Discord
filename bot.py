@@ -95,6 +95,10 @@ STEAM_NEWS_PATCH_TITLE_RE = re.compile(
     r'\b(update|patch|patchnote|patchnotes|hotfix|ver\.|version|v\d|release notes)\b',
     re.IGNORECASE,
 )
+STEAM_NEWS_NON_UPDATE_TITLE_RE = re.compile(
+    r'\b(sale|discount|trailer|soundtrack|stream|livestream|demo|playtest|wishlist|giveaway|contest)\b',
+    re.IGNORECASE,
+)
 
 def safe_http_url(url, fallback=None):
     value = str(url or '').strip()
@@ -117,7 +121,12 @@ def steam_watcher_cutoff_ts():
 
 def is_patch_like_steam_news(item):
     title = str(item.get("title") or "")
-    return bool(STEAM_NEWS_PATCH_TITLE_RE.search(title))
+    if STEAM_NEWS_PATCH_TITLE_RE.search(title):
+        return True
+    if STEAM_NEWS_NON_UPDATE_TITLE_RE.search(title):
+        return False
+    feed_name = str(item.get("feedname") or "")
+    return feed_name == "steam_community_announcements"
 
 # Khởi tạo intents để bot có quyền đọc được tin nhắn trên server
 intents = discord.Intents.default()
