@@ -544,6 +544,7 @@
 
             <div class="tab-nav">
                 <button class="tab-button active" type="button" data-dashboard-tab="control" onclick="switchDashboardTab('control')">Dieu khien</button>
+                <button class="tab-button" type="button" data-dashboard-tab="version" onclick="switchDashboardTab('version')">Version</button>
                 <button class="tab-button" type="button" data-dashboard-tab="logs" onclick="switchDashboardTab('logs')">Log gan day</button>
             </div>
 
@@ -711,6 +712,63 @@
             </section>
             </div>
 
+            <div id="dashboard-version" class="dashboard-tab">
+                <section class="tab-page">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title">Version</h2>
+                            <button id="btnRefreshVersion" class="btn-muted" onclick="loadVersion()">Tai lai version</button>
+                        </div>
+                        <div class="panel-body">
+                            <div class="metric-grid">
+                                <div class="metric">
+                                    <div class="metric-label">Branch</div>
+                                    <div id="versionBranch" class="metric-value">-</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Commit</div>
+                                    <div id="versionCommit" class="metric-value">-</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Trang thai repo</div>
+                                    <div id="versionDirty" class="metric-value">-</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Python</div>
+                                    <div id="versionPython" class="metric-value">-</div>
+                                </div>
+                            </div>
+                            <div class="form-grid">
+                                <div class="form-group full">
+                                    <label>Commit message</label>
+                                    <div id="versionSubject" class="readonly-list">-</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Commit time</label>
+                                    <div id="versionTime" class="readonly-list">-</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Dashboard bind</label>
+                                    <div id="versionBind" class="readonly-list">-</div>
+                                </div>
+                                <div class="form-group full">
+                                    <label>Public URL</label>
+                                    <div id="versionPublicUrl" class="readonly-list">-</div>
+                                </div>
+                                <div class="form-group full">
+                                    <label>Full commit</label>
+                                    <div id="versionFullCommit" class="readonly-list">-</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Lan kiem tra</label>
+                                    <div id="versionCheckedAt" class="readonly-list">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
             <div id="dashboard-logs" class="dashboard-tab">
                 <section class="tab-page">
                     <div class="panel">
@@ -771,6 +829,9 @@
             });
             if (tabName === 'logs') {
                 loadLogs();
+            }
+            if (tabName === 'version') {
+                loadVersion();
             }
         }
 
@@ -959,6 +1020,30 @@
                 });
             } catch (err) {
                 body.innerHTML = '<tr><td colspan="4" class="readonly-empty">Khong tai duoc log.</td></tr>';
+            }
+        }
+
+        function setVersionText(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value || '-';
+        }
+
+        async function loadVersion() {
+            try {
+                const res = await fetch('/api/version');
+                const info = await res.json();
+                setVersionText('versionBranch', info.branch);
+                setVersionText('versionCommit', info.commit);
+                setVersionText('versionDirty', info.dirty ? 'Co thay doi local' : 'Sach');
+                setVersionText('versionPython', info.python);
+                setVersionText('versionSubject', info.commit_subject);
+                setVersionText('versionTime', info.commit_time);
+                setVersionText('versionBind', `${info.dashboard_host || '-'}:${info.dashboard_port || '-'}`);
+                setVersionText('versionPublicUrl', info.public_url || 'Chua cau hinh');
+                setVersionText('versionFullCommit', info.full_commit);
+                setVersionText('versionCheckedAt', info.checked_at);
+            } catch (err) {
+                setVersionText('versionSubject', 'Khong tai duoc thong tin version.');
             }
         }
 
@@ -1185,6 +1270,7 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             await loadSettings();
+            await loadVersion();
             await loadLogs();
             fetchStatus();
             setInterval(fetchStatus, 3000);

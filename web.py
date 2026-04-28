@@ -21,12 +21,49 @@ BOT_EVENTS_FILE = os.path.join(DATA_DIR, 'bot_events.log')
 DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "5000"))
 DASHBOARD_PUBLIC_URL = os.getenv("DASHBOARD_PUBLIC_URL", "").strip()
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # File name of the bot to search for
 BOT_FILE = "bot.py"
-BOT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), BOT_FILE)
+BOT_PATH = os.path.join(APP_ROOT, BOT_FILE)
 CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == "nt" else 0
 _bot_status_cache = {"checked_at": 0, "pid": None}
+
+def run_git_command(*args):
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=APP_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+    except Exception:
+        return ""
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
+
+def get_version_info():
+    commit = run_git_command("rev-parse", "--short", "HEAD")
+    full_commit = run_git_command("rev-parse", "HEAD")
+    branch = run_git_command("branch", "--show-current")
+    commit_time = run_git_command("log", "-1", "--format=%cd", "--date=format:%d-%m-%Y %H:%M:%S")
+    commit_subject = run_git_command("log", "-1", "--format=%s")
+    dirty = bool(run_git_command("status", "--short"))
+    return {
+        "commit": commit or "unknown",
+        "full_commit": full_commit or "",
+        "branch": branch or "unknown",
+        "commit_time": commit_time or "unknown",
+        "commit_subject": commit_subject or "unknown",
+        "dirty": dirty,
+        "python": sys.version.split()[0],
+        "dashboard_host": DASHBOARD_HOST,
+        "dashboard_port": DASHBOARD_PORT,
+        "public_url": DASHBOARD_PUBLIC_URL,
+        "checked_at": datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
+    }
 
 def is_bot_running(force=False):
     now = time.monotonic()
@@ -216,6 +253,10 @@ def get_logs():
     limit = min(max(limit, 1), 300)
     return jsonify(read_recent_json_lines(BOT_EVENTS_FILE, limit))
 
+@app.route('/api/version', methods=['GET'])
+def version():
+    return jsonify(get_version_info())
+
 if __name__ == '__main__':
     local_url = f"http://{DASHBOARD_HOST}:{DASHBOARD_PORT}"
 
@@ -228,24 +269,3 @@ if __name__ == '__main__':
     print("========================================")
 
     app.run(host=DASHBOARD_HOST, port=DASHBOARD_PORT, debug=False)
-    sys.exit(0)
-
-    # Build list of available IP addresses
-    import socket
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        local_ip = s.getsockname()[0]
-        s.close()
-    except Exception:
-        local_ip = "127.0.0.1"
-
-    print("========================================")
-    print("🔹 Web Dashboard ĐÃ KHỞI ĐỘNG!")
-    print(f"👉 Truỵ cập trên MÁY NÀY: http://127.0.0.1:5000")
-    if local_ip != "127.0.0.1":
-        print(f"👉 Cùng mạng Wifi/LAN (Điện thoại, máy khác): http://{local_ip}:5000")
-    print("========================================")
-    
-    # Chạy host='0.0.0.0' để cho phép máy khác truy cập
-    app.run(host='0.0.0.0', port=5000, debug=False)
