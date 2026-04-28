@@ -93,6 +93,7 @@ STEAM_WATCHER_MAX_AGE_DAYS = min(max(STEAM_WATCHER_MAX_AGE_DAYS, 1), 365)
 STEAM_HTTP_TIMEOUT = 8
 RECENT_CHECK_TIMEOUT = 20
 STEAM_WATCHER_SEND_LIMIT = 1
+STEAM_RECENT_PATCH_CHECK_COUNT = 20
 STEAM_NEWS_PATCH_TITLE_RE = re.compile(
     r'\b(update|patch|patchnote|patchnotes|hotfix|ver\.|version|v\d|release notes)\b',
     re.IGNORECASE,
@@ -602,7 +603,7 @@ def fetch_steam_news_patches():
 def fetch_recent_steam_news_for_app(app_id):
     url = (
         "https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/"
-        f"?appid={app_id}&count=1&maxlength=900&format=json"
+        f"?appid={app_id}&count={STEAM_RECENT_PATCH_CHECK_COUNT}&maxlength=900&format=json"
     )
     req = urllib.request.Request(
         url,
@@ -618,7 +619,12 @@ def fetch_recent_steam_news_for_app(app_id):
     if not items:
         return str(app_id), None
 
-    item = items[0]
+    patch_items = [item for item in items if is_patch_like_steam_news(item)]
+    if not patch_items:
+        return str(app_id), None
+
+    patch_items.sort(key=lambda item: item.get("date") if isinstance(item.get("date"), int) else 0, reverse=True)
+    item = patch_items[0]
     title = item.get("title") or "Steam news"
     feed_label = item.get("feedlabel") or item.get("feedname") or "Steam News"
     date_value = item.get("date")
@@ -780,7 +786,7 @@ async def send_recent_patch_info(destination, patch):
         embed.add_field(name="Link", value=patch_url[:1024], inline=False)
     if patch.get("date"):
         embed.add_field(name="Time", value=patch["date"], inline=True)
-    embed.set_footer(text=f"Recent patch/news - {source}")
+    embed.set_footer(text=f"Recent patch/update - {source}")
     await destination.send(embed=embed)
 
 def resolve_steam_check_selection(selection):
@@ -832,7 +838,7 @@ def build_game_help():
         "/game list - hien bang game\n"
         "/game add <app_id> - them game, bot tu lay ten tu Steam\n"
         "/game remove <so thu tu | app_id | ten game> - xoa game\n"
-        "/check <so thu tu | app_id | ten game> - xem patch/news gan nhat"
+        "/check <so thu tu | app_id | ten game> - xem patch/update gan nhat"
     )
 
 def split_discord_text(text, limit=1900):
@@ -952,8 +958,8 @@ async def run_steamdb_patch_check(manual=False):
         return f"Da ghi nho {len(current_ids)} patch/news hien tai tu {source}, nhung muc moi sau do se duoc bao."
 
     new_patches = [patch for patch in patches if patch["id"] not in seen_set]
-    manual_latest_fallback = manual and not new_patches and bool(patches)
-    patches_to_send = (patches[:1] if manual_latest_fallback else new_patches[:STEAM_WATCHER_SEND_LIMIT])
+    manual_latest = manual and bool(patches)
+    patches_to_send = (patches[:1] if manual_latest else new_patches[:STEAM_WATCHER_SEND_LIMIT])
     failed_announcements = 0
     for patch in patches_to_send:
         try:
@@ -967,12 +973,12 @@ async def run_steamdb_patch_check(manual=False):
     state["seeded"] = True
     save_steamdb_patch_state(state)
 
-    if manual_latest_fallback:
+    if manual_latest:
         sent_count = len(patches_to_send) - failed_announcements
-        log_event("steamdb_check", f"Da gui lai patch/news gan nhat tu {source}.")
+        log_event("steamdb_check", f"Da gui patch/update gan nhat tu {source}.")
         if failed_announcements:
-            return f"Khong gui duoc patch/news gan nhat tu {source}; loi {failed_announcements} muc."
-        return f"Da gui patch/news gan nhat tu {source}."
+            return f"Khong gui duoc patch/update gan nhat tu {source}; loi {failed_announcements} muc."
+        return f"Da gui patch/update gan nhat tu {source}."
     if new_patches:
         sent_count = len(patches_to_send) - failed_announcements
         skipped_count = max(0, len(new_patches) - len(patches_to_send))
@@ -1072,7 +1078,7 @@ async def ping_command(ctx):
 @bot.command(name='steamdbcheck', aliases=['patchcheck'])
 @commands.has_permissions(manage_messages=True)
 async def steamdb_check_command(ctx):
-    await ctx.send("Dang kiem tra SteamDB patch notes...")
+    await ctx.send("Dang lay patch/update gan nhat tu SteamDB/Steam...")
     result = await run_steamdb_patch_check(manual=True)
     await ctx.send(result)
 
@@ -1092,7 +1098,7 @@ async def steamdb_recent_command(ctx, *selection):
         await ctx.send("Chi check toi da 10 App ID moi lan de tranh spam kenh.")
         app_ids = app_ids[:10]
 
-    await ctx.send(f"Dang lay patch/news gan nhat cho {len(app_ids)} game...")
+    await ctx.send(f"Dang lay patch/update gan nhat cho {len(app_ids)} game...")
     try:
         recent, timed_out = await fetch_recent_steam_news_for_apps_async(app_ids)
     except (urllib.error.URLError, TimeoutError, asyncio.TimeoutError) as e:
@@ -1110,7 +1116,7 @@ async def steamdb_recent_command(ctx, *selection):
         if patch:
             await send_recent_patch_info(ctx, patch)
         else:
-            await ctx.send(f"Khong tim thay patch/news gan nhat cho Steam App ID `{app_id}`.")
+            await ctx.send(f"Khong tim thay patch/update gan nhat cho Steam App ID `{app_id}`.")
         await asyncio.sleep(1)
 
 @bot.command(name='dlt')
@@ -1185,11 +1191,11 @@ async def slash_ping(interaction: discord.Interaction):
     latency = round(bot.latency * 1000)
     await interaction.response.send_message(f"Bot online. Ping: `{latency}ms`")
 
-@bot.tree.command(name='steamdbcheck', description='Kiem tra patch/news moi theo cau hinh Steam watcher')
+@bot.tree.command(name='steamdbcheck', description='Lay patch/update gan nhat theo cau hinh Steam watcher')
 @app_commands.default_permissions(manage_messages=True)
 async def slash_steamdbcheck(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
-    await interaction.followup.send("Dang kiem tra SteamDB/Steam news...")
+    await interaction.followup.send("Dang lay patch/update gan nhat tu SteamDB/Steam...")
     result = await run_steamdb_patch_check(manual=True)
     await interaction.followup.send(result)
 
@@ -1209,7 +1215,7 @@ async def slash_delete_target_keyword_messages(interaction: discord.Interaction,
     result = await delete_target_keyword_messages_in_categories(interaction.guild, limit)
     await interaction.followup.send(result, ephemeral=True)
 
-@bot.tree.command(name='check', description='Xem patch/news gan nhat cua game')
+@bot.tree.command(name='check', description='Xem patch/update gan nhat cua game')
 @app_commands.default_permissions(manage_messages=True)
 @app_commands.describe(game='Chon so thu tu, App ID, hoac ten game')
 @app_commands.autocomplete(game=steam_game_autocomplete)
@@ -1227,9 +1233,9 @@ async def slash_check(interaction: discord.Interaction, game: str | None = None)
         return
 
     check_ids = app_ids[:10]
-    print(f"/check slash: fetching recent Steam news for {check_ids}")
-    log_event("check", f"Dang lay patch/news cho {', '.join(check_ids)}.")
-    await interaction.followup.send(f"Dang lay patch/news gan nhat cho {len(check_ids)} game...")
+    print(f"/check slash: fetching recent Steam patch updates for {check_ids}")
+    log_event("check", f"Dang lay patch/update cho {', '.join(check_ids)}.")
+    await interaction.followup.send(f"Dang lay patch/update gan nhat cho {len(check_ids)} game...")
     try:
         recent, timed_out = await fetch_recent_steam_news_for_apps_async(check_ids)
     except (urllib.error.URLError, TimeoutError, asyncio.TimeoutError) as e:
@@ -1239,8 +1245,8 @@ async def slash_check(interaction: discord.Interaction, game: str | None = None)
         await interaction.followup.send(f"Loi doc Steam API: {e}")
         return
 
-    print(f"/check slash: finished recent Steam news for {check_ids}")
-    log_event("check", f"Da lay xong patch/news cho {', '.join(check_ids)}.")
+    print(f"/check slash: finished recent Steam patch updates for {check_ids}")
+    log_event("check", f"Da lay xong patch/update cho {', '.join(check_ids)}.")
     for app_id in check_ids:
         if app_id in timed_out:
             await interaction.followup.send(f"Steam API timeout cho Steam App ID `{app_id}`.")
@@ -1249,7 +1255,7 @@ async def slash_check(interaction: discord.Interaction, game: str | None = None)
         if patch:
             await send_recent_patch_info(interaction.followup, patch)
         else:
-            await interaction.followup.send(f"Khong tim thay patch/news gan nhat cho Steam App ID `{app_id}`.")
+            await interaction.followup.send(f"Khong tim thay patch/update gan nhat cho Steam App ID `{app_id}`.")
         await asyncio.sleep(1)
 
 slash_game_group = app_commands.Group(
