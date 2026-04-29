@@ -91,20 +91,19 @@ STEAM_HTTP_TIMEOUT = 8
 RECENT_CHECK_TIMEOUT = 20
 STEAM_WATCHER_SEND_LIMIT = 1
 STEAM_RECENT_PATCH_CHECK_COUNT = 20
-STEAM_NEWS_PATCH_TITLE_RE = re.compile(
-    r'\b(update|patch|patchnote|patchnotes|hotfix|ver\.|version|v\d|release notes)\b',
-    re.IGNORECASE,
-)
-STEAM_NEWS_NON_UPDATE_TITLE_RE = re.compile(
-    r'\b(sale|discount|trailer|soundtrack|stream|livestream|demo|playtest|wishlist|giveaway|contest)\b',
-    re.IGNORECASE,
-)
+STEAM_EVENT_TYPE_LABELS = {
+    12: "REGULAR UPDATE",
+    13: "MAJOR UPDATE",
+}
 
 def safe_http_url(url, fallback=None):
     value = str(url or '').strip()
-    parsed = urllib.parse.urlparse(value)
+    parsed = urllib.parse.urlsplit(value)
     if parsed.scheme in ('http', 'https') and parsed.netloc:
-        return value
+        path = urllib.parse.quote(urllib.parse.unquote(parsed.path), safe="/:@!$&'()*+=;")
+        query = urllib.parse.quote(urllib.parse.unquote(parsed.query), safe="=&?/:@!$'()*+;")
+        fragment = urllib.parse.quote(urllib.parse.unquote(parsed.fragment), safe="=&?/:@!$'()*+;")
+        return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, path, query, fragment))
     return fallback
 
 def format_utc7_timestamp(timestamp):
@@ -119,14 +118,69 @@ def steam_watcher_cutoff_ts():
     cutoff = now - datetime.timedelta(days=STEAM_WATCHER_MAX_AGE_DAYS)
     return int(cutoff.timestamp())
 
-def is_patch_like_steam_news(item):
-    title = str(item.get("title") or "")
-    if STEAM_NEWS_PATCH_TITLE_RE.search(title):
-        return True
-    if STEAM_NEWS_NON_UPDATE_TITLE_RE.search(title):
-        return False
-    feed_name = str(item.get("feedname") or "")
-    return feed_name == "steam_community_announcements"
+def strip_steam_bbcode(value):
+    text = unescape(str(value or ""))
+    text = re.sub(r'\[/?(?:p|h\d|b|i|u|list|olist|quote|code|c)(?:=[^\]]*)?\]', ' ', text, flags=re.IGNORECASE)
+    text = re.sub(r'\[\*\]', '- ', text)
+    text = re.sub(r'\[/\*\]', ' ', text)
+    text = re.sub(r'\[url=[^\]]+\]([^\[]+)\[/url\]', r'\1', text, flags=re.IGNORECASE)
+    text = re.sub(r'\[[^\]]+\]', ' ', text)
+    return ' '.join(text.split())
+
+def first_localized_text(values):
+    if isinstance(values, list):
+        for value in values:
+            if isinstance(value, str) and value.strip():
+                return strip_steam_bbcode(value)
+    if isinstance(values, str) and values.strip():
+        return strip_steam_bbcode(values)
+    return ""
+
+def steam_event_type_filter():
+    return "13" if STEAMDB_PATCH_MAJOR_ONLY else "12,13"
+
+def steam_event_url(app_id, event_gid):
+    return f"https://store.steampowered.com/news/app/{app_id}/view/{event_gid}"
+
+def steam_event_to_patch(app_id, event):
+    event_gid = str(event.get("gid") or "").strip()
+    if not event_gid:
+        return None
+
+    announcement = event.get("announcement_body") if isinstance(event.get("announcement_body"), dict) else {}
+    title = event.get("event_name") or announcement.get("headline") or "Steam event"
+    event_type = event.get("event_type")
+    event_type_label = STEAM_EVENT_TYPE_LABELS.get(event_type, f"EVENT {event_type}")
+    date_value = (
+        event.get("rtime32_start_time")
+        or announcement.get("posttime")
+        or event.get("rtime_created")
+    )
+
+    summary = ""
+    try:
+        jsondata = _json.loads(event.get("jsondata") or "{}")
+        summary = first_localized_text(jsondata.get("localized_summary"))
+    except Exception:
+        summary = ""
+    if not summary:
+        summary = strip_steam_bbcode(announcement.get("body"))[:900]
+
+    build_id = event.get("build_id")
+    return {
+        "id": f"steamevent:{app_id}:{event_gid}",
+        "app_id": str(app_id),
+        "game": STEAM_APP_NAMES.get(str(app_id), f"Steam App {app_id}"),
+        "title": str(title),
+        "date": format_utc7_timestamp(date_value),
+        "url": steam_event_url(app_id, event_gid),
+        "app_url": f"https://store.steampowered.com/news/app/{app_id}",
+        "source": f"Steam Events - {event_type_label}",
+        "summary": summary,
+        "event_type": event_type_label,
+        "build_id": str(build_id) if build_id else "",
+        "_sort_ts": date_value if isinstance(date_value, int) else 0,
+    }
 
 # Khởi tạo intents để bot có quyền đọc được tin nhắn trên server
 intents = discord.Intents.default()
@@ -577,17 +631,18 @@ def fetch_steamdb_patches():
         patches = [patch for patch in patches if patch["app_id"] in STEAMDB_APP_IDS]
     return patches[:STEAMDB_PATCH_LIMIT]
 
-def fetch_steam_news_patches():
+def fetch_steam_event_patches():
     if not STEAMDB_APP_IDS:
-        raise RuntimeError("SteamDB bi chan 403 va chua cau hinh STEAMDB_APP_IDS de fallback sang Steam Web API.")
+        raise RuntimeError("Chua cau hinh STEAMDB_APP_IDS de lay update tu Steam Events.")
 
     patches = []
     cutoff_ts = steam_watcher_cutoff_ts()
-    count_per_app = max(1, min(STEAMDB_PATCH_LIMIT, 20))
+    count_per_app = max(1, min(STEAMDB_PATCH_LIMIT, 100))
     for app_id in sorted(STEAMDB_APP_IDS):
         url = (
-            "https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/"
-            f"?appid={app_id}&count={count_per_app}&maxlength=400&format=json"
+            "https://store.steampowered.com/events/ajaxgetadjacentpartnerevents/"
+            f"?appid={app_id}&count_before=0&count_after={count_per_app}"
+            f"&event_type_filter={steam_event_type_filter()}"
         )
         req = urllib.request.Request(
             url,
@@ -599,35 +654,28 @@ def fetch_steam_news_patches():
         with urllib.request.urlopen(req, timeout=STEAM_HTTP_TIMEOUT) as resp:
             data = _json.loads(resp.read().decode('utf-8', errors='replace'))
 
-        appnews = data.get("appnews", {})
-        for item in appnews.get("newsitems", []):
-            date_value = item.get("date")
+        if data.get("success") != 1:
+            continue
+        for event in data.get("events", []):
+            date_value = (
+                event.get("rtime32_start_time")
+                or (event.get("announcement_body") or {}).get("posttime")
+                or event.get("rtime_created")
+            )
             if isinstance(date_value, int) and date_value < cutoff_ts:
                 continue
-            if not is_patch_like_steam_news(item):
-                continue
-            title = item.get("title") or "Steam news"
-            feed_label = item.get("feedlabel") or item.get("feedname") or "Steam News"
-            gid = str(item.get("gid") or f"{app_id}:{item.get('date', '')}:{title}")
-            date_text = format_utc7_timestamp(date_value)
-            patches.append({
-                "id": f"steamnews:{app_id}:{gid}",
-                "app_id": str(app_id),
-                "game": STEAM_APP_NAMES.get(str(app_id), f"Steam App {app_id}"),
-                "title": title,
-                "date": date_text,
-                "url": safe_http_url(item.get("url"), f"https://store.steampowered.com/news/app/{app_id}"),
-                "app_url": f"https://steamdb.info/app/{app_id}/patchnotes/",
-                "source": feed_label,
-                "_sort_ts": date_value if isinstance(date_value, int) else 0,
-            })
+            patch = steam_event_to_patch(app_id, event)
+            if patch:
+                patches.append(patch)
+
     patches.sort(key=lambda patch: patch.get("_sort_ts", 0), reverse=True)
     return patches[:STEAMDB_PATCH_LIMIT]
 
 def fetch_recent_steam_news_for_app(app_id):
     url = (
-        "https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/"
-        f"?appid={app_id}&count={STEAM_RECENT_PATCH_CHECK_COUNT}&maxlength=900&format=json"
+        "https://store.steampowered.com/events/ajaxgetadjacentpartnerevents/"
+        f"?appid={app_id}&count_before=0&count_after={STEAM_RECENT_PATCH_CHECK_COUNT}"
+        f"&event_type_filter={steam_event_type_filter()}"
     )
     req = urllib.request.Request(
         url,
@@ -639,34 +687,14 @@ def fetch_recent_steam_news_for_app(app_id):
     with urllib.request.urlopen(req, timeout=STEAM_HTTP_TIMEOUT) as resp:
         data = _json.loads(resp.read().decode('utf-8', errors='replace'))
 
-    items = data.get("appnews", {}).get("newsitems", [])
-    if not items:
+    events = data.get("events", []) if data.get("success") == 1 else []
+    patches = [steam_event_to_patch(app_id, event) for event in events]
+    patches = [patch for patch in patches if patch]
+    if not patches:
         return str(app_id), None
 
-    patch_items = [item for item in items if is_patch_like_steam_news(item)]
-    if not patch_items:
-        return str(app_id), None
-
-    patch_items.sort(key=lambda item: item.get("date") if isinstance(item.get("date"), int) else 0, reverse=True)
-    item = patch_items[0]
-    title = item.get("title") or "Steam news"
-    feed_label = item.get("feedlabel") or item.get("feedname") or "Steam News"
-    date_value = item.get("date")
-    date_text = format_utc7_timestamp(date_value)
-    contents = unescape(item.get("contents") or "")
-    contents = re.sub(r'<[^>]+>', ' ', contents)
-    contents = ' '.join(contents.split())
-    return str(app_id), {
-        "id": f"steamnews:{app_id}:{item.get('gid', title)}",
-        "app_id": str(app_id),
-        "game": STEAM_APP_NAMES.get(str(app_id), f"Steam App {app_id}"),
-        "title": title,
-        "date": date_text,
-        "url": safe_http_url(item.get("url"), f"https://store.steampowered.com/news/app/{app_id}"),
-        "app_url": f"https://steamdb.info/app/{app_id}/patchnotes/",
-        "source": feed_label,
-        "summary": contents[:900],
-    }
+    patches.sort(key=lambda patch: patch.get("_sort_ts", 0), reverse=True)
+    return str(app_id), patches[0]
 
 async def fetch_recent_steam_news_for_apps_async(app_ids, timeout=RECENT_CHECK_TIMEOUT):
     app_ids = list(dict.fromkeys(str(app_id) for app_id in app_ids))
@@ -690,7 +718,7 @@ async def fetch_recent_steam_news_for_apps_async(app_ids, timeout=RECENT_CHECK_T
             key, patch = task.result()
             recent[str(key)] = patch
         except Exception as e:
-            print(f"Steam recent check failed for {app_id}: {e}")
+            print(f"Steam Events recent check failed for {app_id}: {e}")
             recent[app_id] = None
 
     return recent, timed_out
@@ -730,39 +758,8 @@ def merge_patch_updates(*patch_groups):
     return merged[:STEAMDB_PATCH_LIMIT]
 
 def fetch_patch_updates():
-    patches = []
-    sources = []
-    steamdb_error = None
-    steam_news_error = None
-
-    try:
-        steamdb_patches = fetch_steamdb_patches()
-        if steamdb_patches:
-            patches.append(steamdb_patches)
-            sources.append("SteamDB")
-    except urllib.error.HTTPError as e:
-        if e.code != 403:
-            steamdb_error = e
-        else:
-            sources.append("Steam Web API fallback")
-
-    if STEAMDB_APP_IDS:
-        try:
-            steam_news = fetch_steam_news_patches()
-            if steam_news:
-                patches.append(steam_news)
-                if "Steam Web API" not in sources and "Steam Web API fallback" not in sources:
-                    sources.append("Steam Web API")
-        except Exception as e:
-            steam_news_error = e
-
-    if not patches and steamdb_error:
-        raise steamdb_error
-    if not patches and steam_news_error:
-        raise steam_news_error
-
-    source = " + ".join(sources) if sources else "SteamDB/Steam Web API"
-    return merge_patch_updates(*patches), source
+    steam_events = fetch_steam_event_patches()
+    return merge_patch_updates(steam_events), "Steam Events"
 
 async def get_steamdb_patch_channel():
     if not STEAMDB_PATCH_CHANNEL_ID:
@@ -780,7 +777,7 @@ async def get_steamdb_patch_channel():
     return None
 
 async def announce_steamdb_patch(channel, patch):
-    source = patch.get("source", "SteamDB")
+    source = patch.get("source", "Steam Events")
     embed = discord.Embed(
         title=patch["title"][:256],
         description=f"**Game:** [{patch['game']}]({patch['app_url']})\n**App ID:** `{patch['app_id']}`",
@@ -791,6 +788,10 @@ async def announce_steamdb_patch(channel, patch):
         embed.add_field(name="Link", value=patch_url[:1024], inline=False)
     if patch.get("date"):
         embed.add_field(name="Time", value=patch["date"], inline=True)
+    if patch.get("event_type"):
+        embed.add_field(name="Type", value=patch["event_type"], inline=True)
+    if patch.get("build_id"):
+        embed.add_field(name="Build", value=patch["build_id"], inline=True)
     embed.set_footer(text=f"Patch Watcher - {source}")
     await channel.send(embed=embed)
 
@@ -810,6 +811,10 @@ async def send_recent_patch_info(destination, patch):
         embed.add_field(name="Link", value=patch_url[:1024], inline=False)
     if patch.get("date"):
         embed.add_field(name="Time", value=patch["date"], inline=True)
+    if patch.get("event_type"):
+        embed.add_field(name="Type", value=patch["event_type"], inline=True)
+    if patch.get("build_id"):
+        embed.add_field(name="Build", value=patch["build_id"], inline=True)
     embed.set_footer(text=f"Recent patch/update - {source}")
     await destination.send(embed=embed)
 
@@ -950,22 +955,22 @@ async def steam_game_autocomplete(interaction: discord.Interaction, current: str
 
 async def run_steamdb_patch_check(manual=False):
     if not STEAMDB_PATCH_CHANNEL_ID:
-        log_event("steamdb_check", "SteamDB watcher chua cau hinh kenh thong bao.", "warn")
-        return "SteamDB watcher chua duoc cau hinh kenh thong bao."
+        log_event("steamdb_check", "Steam Events watcher chua cau hinh kenh thong bao.", "warn")
+        return "Steam Events watcher chua duoc cau hinh kenh thong bao."
 
     channel = await get_steamdb_patch_channel()
     if not channel:
-        log_event("steamdb_check", f"Khong tim thay kenh SteamDB ID {STEAMDB_PATCH_CHANNEL_ID}.", "warn")
-        return f"Khong tim thay kenh SteamDB ID {STEAMDB_PATCH_CHANNEL_ID}."
+        log_event("steamdb_check", f"Khong tim thay kenh Steam Events ID {STEAMDB_PATCH_CHANNEL_ID}.", "warn")
+        return f"Khong tim thay kenh Steam Events ID {STEAMDB_PATCH_CHANNEL_ID}."
 
     try:
         patches, source = await asyncio.to_thread(fetch_patch_updates)
     except (urllib.error.URLError, TimeoutError) as e:
-        log_event("steamdb_check", f"Loi ket noi SteamDB/Steam API: {e}", "error")
-        return f"Loi ket noi SteamDB/Steam API: {e}"
+        log_event("steamdb_check", f"Loi ket noi Steam Events: {e}", "error")
+        return f"Loi ket noi Steam Events: {e}"
     except Exception as e:
-        log_event("steamdb_check", f"Loi doc SteamDB/Steam API: {e}", "error")
-        return f"Loi doc SteamDB/Steam API: {e}"
+        log_event("steamdb_check", f"Loi doc Steam Events: {e}", "error")
+        return f"Loi doc Steam Events: {e}"
 
     if not patches:
         return "Khong tim thay patch/news phu hop voi cau hinh hien tai."
@@ -1102,7 +1107,7 @@ async def ping_command(ctx):
 @bot.command(name='steamdbcheck', aliases=['patchcheck'])
 @commands.has_permissions(manage_messages=True)
 async def steamdb_check_command(ctx):
-    await ctx.send("Dang lay patch/update gan nhat tu SteamDB/Steam...")
+    await ctx.send("Dang lay patch/update gan nhat tu Steam Events...")
     result = await run_steamdb_patch_check(manual=True)
     await ctx.send(result)
 
@@ -1126,15 +1131,15 @@ async def steamdb_recent_command(ctx, *selection):
     try:
         recent, timed_out = await fetch_recent_steam_news_for_apps_async(app_ids)
     except (urllib.error.URLError, TimeoutError, asyncio.TimeoutError) as e:
-        await ctx.send(f"Loi ket noi Steam API: {e}")
+        await ctx.send(f"Loi ket noi Steam Events: {e}")
         return
     except Exception as e:
-        await ctx.send(f"Loi doc Steam API: {e}")
+        await ctx.send(f"Loi doc Steam Events: {e}")
         return
 
     for app_id in app_ids:
         if app_id in timed_out:
-            await ctx.send(f"Steam API timeout cho Steam App ID `{app_id}`.")
+            await ctx.send(f"Steam Events timeout cho Steam App ID `{app_id}`.")
             continue
         patch = recent.get(str(app_id))
         if patch:
@@ -1219,7 +1224,7 @@ async def slash_ping(interaction: discord.Interaction):
 @app_commands.default_permissions(manage_messages=True)
 async def slash_steamdbcheck(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
-    await interaction.followup.send("Dang lay patch/update gan nhat tu SteamDB/Steam...")
+    await interaction.followup.send("Dang lay patch/update gan nhat tu Steam Events...")
     result = await run_steamdb_patch_check(manual=True)
     await interaction.followup.send(result)
 
@@ -1257,23 +1262,23 @@ async def slash_check(interaction: discord.Interaction, game: str | None = None)
         return
 
     check_ids = app_ids[:10]
-    print(f"/check slash: fetching recent Steam patch updates for {check_ids}")
+    print(f"/check slash: fetching recent Steam Events updates for {check_ids}")
     log_event("check", f"Dang lay patch/update cho {', '.join(check_ids)}.")
     await interaction.followup.send(f"Dang lay patch/update gan nhat cho {len(check_ids)} game...")
     try:
         recent, timed_out = await fetch_recent_steam_news_for_apps_async(check_ids)
     except (urllib.error.URLError, TimeoutError, asyncio.TimeoutError) as e:
-        await interaction.followup.send(f"Loi ket noi Steam API: {e}")
+        await interaction.followup.send(f"Loi ket noi Steam Events: {e}")
         return
     except Exception as e:
-        await interaction.followup.send(f"Loi doc Steam API: {e}")
+        await interaction.followup.send(f"Loi doc Steam Events: {e}")
         return
 
-    print(f"/check slash: finished recent Steam patch updates for {check_ids}")
+    print(f"/check slash: finished recent Steam Events updates for {check_ids}")
     log_event("check", f"Da lay xong patch/update cho {', '.join(check_ids)}.")
     for app_id in check_ids:
         if app_id in timed_out:
-            await interaction.followup.send(f"Steam API timeout cho Steam App ID `{app_id}`.")
+            await interaction.followup.send(f"Steam Events timeout cho Steam App ID `{app_id}`.")
             continue
         patch = recent.get(str(app_id))
         if patch:
