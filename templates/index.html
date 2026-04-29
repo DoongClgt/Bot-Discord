@@ -417,6 +417,27 @@
             margin-top: 18px;
         }
 
+        .version-metrics .metric {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 106px;
+        }
+
+        .version-metrics .metric-label {
+            margin-bottom: 10px;
+        }
+
+        .version-metrics .metric-value {
+            margin-top: 0;
+            font-size: 18px;
+            line-height: 1.35;
+        }
+
+        .version-metrics .version-detail {
+            font-size: 16px;
+        }
+
         .form-grid-3 {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -866,7 +887,7 @@
                             <button id="btnRefreshVersion" class="btn-muted" onclick="loadVersion()">Tải lại version</button>
                         </div>
                         <div class="panel-body">
-                            <div class="metric-grid">
+                            <div class="metric-grid version-metrics">
                                 <div class="metric">
                                     <div class="metric-label">Branch</div>
                                     <div id="versionBranch" class="metric-value version-detail">-</div>
