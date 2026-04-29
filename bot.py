@@ -757,6 +757,14 @@ def merge_patch_updates(*patch_groups):
     merged.sort(key=lambda patch: patch.get("_sort_ts", 0), reverse=True)
     return merged[:STEAMDB_PATCH_LIMIT]
 
+def patch_seen_keys(patch):
+    keys = []
+    for field in ("id", "url"):
+        value = str(patch.get(field) or "").strip()
+        if value:
+            keys.append(value)
+    return keys
+
 def fetch_patch_updates():
     steam_events = fetch_steam_event_patches()
     return merge_patch_updates(steam_events), "Steam Events"
@@ -978,16 +986,28 @@ async def run_steamdb_patch_check(manual=False):
     state = load_steamdb_patch_state()
     seen = list(dict.fromkeys(str(item) for item in state.get("seen", [])))
     seen_set = set(seen)
-    current_ids = [patch["id"] for patch in patches]
+    current_seen_keys = []
+    for patch in patches:
+        current_seen_keys.extend(patch_seen_keys(patch))
+    current_seen_keys = list(dict.fromkeys(current_seen_keys))
 
     if not state.get("seeded") and not manual:
-        state["seen"] = list(dict.fromkeys(current_ids + seen))[:500]
+        state["seen"] = list(dict.fromkeys(current_seen_keys + seen))[:500]
         state["seeded"] = True
         save_steamdb_patch_state(state)
-        return f"Da ghi nho {len(current_ids)} patch/news hien tai tu {source}, nhung muc moi sau do se duoc bao."
+        return f"Da ghi nho {len(patches)} patch/news hien tai tu {source}, nhung muc moi sau do se duoc bao."
 
-    new_patches = [patch for patch in patches if patch["id"] not in seen_set]
+    new_patches = [
+        patch for patch in patches
+        if not any(key in seen_set for key in patch_seen_keys(patch))
+    ]
     manual_latest = manual and bool(patches)
+    if manual_latest and any(key in seen_set for key in patch_seen_keys(patches[0])):
+        state["seen"] = list(dict.fromkeys(current_seen_keys + seen))[:500]
+        state["seeded"] = True
+        save_steamdb_patch_state(state)
+        return f"Patch/update gan nhat tu {source} da duoc gui roi."
+
     patches_to_send = (patches[:1] if manual_latest else new_patches[:STEAM_WATCHER_SEND_LIMIT])
     failed_announcements = 0
     for patch in patches_to_send:
@@ -998,7 +1018,7 @@ async def run_steamdb_patch_check(manual=False):
             log_event("steamdb_check", f"Khong gui duoc embed patch {patch.get('id')}: {e}", "error")
         await asyncio.sleep(0.2 if manual else 1)
 
-    state["seen"] = list(dict.fromkeys(current_ids + seen))[:500]
+    state["seen"] = list(dict.fromkeys(current_seen_keys + seen))[:500]
     state["seeded"] = True
     save_steamdb_patch_state(state)
 
