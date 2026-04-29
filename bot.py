@@ -461,6 +461,14 @@ async def handle_spam_trap_message(message: discord.Message, actual_channel_id: 
             "kenh nghi pham",
         )
 
+        if role and had_role:
+            await ban_spam_trap_suspect(
+                message,
+                "Nghi pham da chat trong kenh nghi pham.",
+                "Spam trap: nghi pham chat trong kenh nghi pham",
+            )
+            return True
+
         try:
             await message.delete()
         except (discord.Forbidden, discord.HTTPException):
