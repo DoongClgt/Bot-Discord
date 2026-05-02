@@ -36,6 +36,7 @@ STEAMDB_PATCH_CHANNEL_ID=''
 STEAMDB_PATCH_MENTION_USER_ID=''
 STEAMDB_PATCH_MENTION_USER_IDS=''
 STEAMDB_APP_IDS=''
+SPAM_TRAP_EXCLUDED_ROLE_IDS=''
 SUSPECT_CHANNEL_ID=''
 SPAM_TRAP_CHANNEL_ID=''
 SPAM_TRAP_CHANNEL_ID_2=''
@@ -137,6 +138,7 @@ Cách hoạt động:
 - Người nhắn vào kênh bẫy sẽ bị gắn role nghi phạm và tin nhắn bị xoá.
 - Người nhắn vào `SUSPECT_CHANNEL_ID` cũng bị gắn role nghi phạm và tin nhắn bị xoá.
 - Người đã có role nghi phạm mà nhắn vào kênh bẫy sẽ bị ban.
+- Người có role trong `SPAM_TRAP_EXCLUDED_ROLE_IDS` sẽ được bỏ qua trong kênh bẫy và kênh nghi phạm.
 - Log ban gửi vào thread `BAN_LOG_THREAD_ID`.
 
 ## Steam Watcher

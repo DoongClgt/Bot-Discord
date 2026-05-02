@@ -22,6 +22,13 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 TARGET_KEYWORDS_RAW = os.getenv('TARGET_KEYWORDS', 'bad word usage, too many infractions')
 TARGET_KEYWORDS = [kw.strip().lower() for kw in TARGET_KEYWORDS_RAW.split(',') if kw.strip()]
 
+def parse_int_set(raw_value):
+    return {
+        int(item.strip())
+        for item in str(raw_value or '').split(',')
+        if item.strip().isdigit()
+    }
+
 # ID của người hoặc bot mà bạn muốn xóa tin nhắn (lấy từ tùy chọn .env)
 TARGET_USER_ID = int(os.getenv('TARGET_USER_ID', 0))
 
@@ -40,6 +47,7 @@ SPAM_TRAP_CHANNEL_ID = int(SPAM_TRAP_CHANNEL_ID_STR) if SPAM_TRAP_CHANNEL_ID_STR
 SPAM_TRAP_CHANNEL_ID_2_STR = os.getenv('SPAM_TRAP_CHANNEL_ID_2', '')
 SPAM_TRAP_CHANNEL_ID_2 = int(SPAM_TRAP_CHANNEL_ID_2_STR) if SPAM_TRAP_CHANNEL_ID_2_STR.isdigit() else 0
 SPAM_TRAP_CHANNEL_IDS = {channel_id for channel_id in (SPAM_TRAP_CHANNEL_ID, SPAM_TRAP_CHANNEL_ID_2) if channel_id}
+SPAM_TRAP_EXCLUDED_ROLE_IDS = parse_int_set(os.getenv('SPAM_TRAP_EXCLUDED_ROLE_IDS', ''))
 SUSPECT_ROLE_NAME = os.getenv('SUSPECT_ROLE_NAME', 'Nghi Phạm')
 
 BAN_LOG_THREAD_ID_STR = os.getenv('BAN_LOG_THREAD_ID', '')
@@ -442,11 +450,22 @@ async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audi
     except discord.HTTPException as e:
         await send_configured_ban_log(message.guild, f"Khong ban duoc {message.author.mention}: {e}")
 
+def has_spam_trap_excluded_role(member: discord.Member):
+    if not SPAM_TRAP_EXCLUDED_ROLE_IDS:
+        return False
+    return any(role.id in SPAM_TRAP_EXCLUDED_ROLE_IDS for role in member.roles)
+
 async def handle_spam_trap_message(message: discord.Message, actual_channel_id: int):
     if not isinstance(message.author, discord.Member) or not message.guild:
         return False
 
-    if actual_channel_id in SPAM_TRAP_CHANNEL_IDS:
+    is_spam_trap_channel = actual_channel_id in SPAM_TRAP_CHANNEL_IDS
+    is_suspect_channel = bool(SUSPECT_CHANNEL_ID and actual_channel_id == SUSPECT_CHANNEL_ID)
+    if (is_spam_trap_channel or is_suspect_channel) and has_spam_trap_excluded_role(message.author):
+        log_event("spam_trap", f"Bo qua {message.author.id}: co role mien tru spam trap.")
+        return False
+
+    if is_spam_trap_channel:
         role, had_role, error = await ensure_suspect_role(
             message.author,
             "User sent a message in spam trap channel",
@@ -470,7 +489,7 @@ async def handle_spam_trap_message(message: discord.Message, actual_channel_id: 
             await send_general_log(message.guild, f"Spam trap loi voi {message.author.mention}: {error}")
         return True
 
-    if SUSPECT_CHANNEL_ID and actual_channel_id == SUSPECT_CHANNEL_ID:
+    if is_suspect_channel:
         role, had_role, error = await ensure_suspect_role(
             message.author,
             "User sent a message in suspect channel",
