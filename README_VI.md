@@ -138,7 +138,7 @@ Cách hoạt động:
 - Người nhắn vào kênh bẫy sẽ bị gắn role nghi phạm và tin nhắn bị xoá.
 - Người nhắn vào `SUSPECT_CHANNEL_ID` cũng bị gắn role nghi phạm và tin nhắn bị xoá.
 - Người đã có role nghi phạm mà nhắn vào kênh bẫy sẽ bị ban.
-- Người có role trong `SPAM_TRAP_EXCLUDED_ROLE_IDS` sẽ được bỏ qua trong kênh bẫy và kênh nghi phạm.
+- Người có role trong `SPAM_TRAP_EXCLUDED_ROLE_IDS` được miễn trừ: tin nhắn ở kênh bẫy/nghi phạm vẫn bị xoá, nhưng **không** bị gắn role nghi phạm và **không** bị ban.
 - Log ban gửi vào thread `BAN_LOG_THREAD_ID`.
 
 ## Steam Watcher
