@@ -33,6 +33,8 @@ nano .env
 ```env
 DISCORD_TOKEN=''
 STEAMDB_PATCH_CHANNEL_ID=''
+STEAMDB_PATCH_MENTION_USER_ID=''
+STEAMDB_PATCH_MENTION_USER_IDS=''
 STEAMDB_APP_IDS=''
 SUSPECT_CHANNEL_ID=''
 SPAM_TRAP_CHANNEL_ID=''
@@ -153,6 +155,7 @@ STEAM_WATCHER_MAX_AGE_DAYS='7'
 Ghi chú:
 
 - Watcher chỉ chạy khi có `STEAMDB_PATCH_CHANNEL_ID`.
+- `STEAMDB_PATCH_MENTION_USER_ID` ping một người; `STEAMDB_PATCH_MENTION_USER_IDS` ping nhiều người, cách nhau bằng dấu phẩy.
 - `STEAMDB_APP_IDS` hỗ trợ dạng `730,570` hoặc `730_Counter-Strike 2, 570_Dota 2`.
 - `/game add <SteamAppID>` lấy tên game từ Steam Store, ghi vào `.env`, rồi reload cấu hình.
 - Nếu bot chạy trên VPS, `/game add` cập nhật `.env` trên VPS, không cập nhật `.env` local.

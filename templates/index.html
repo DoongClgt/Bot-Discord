@@ -842,7 +842,7 @@
                     <div class="panel">
                         <div class="panel-header">
                             <h2 class="panel-title">Steam patch watcher</h2>
-                            <span class="panel-note">Kênh sửa trong .env, mặc định 12 tiếng</span>
+                            <span class="panel-note">Cấu hình kênh, ping và chu kỳ check trong .env</span>
                         </div>
                         <div class="panel-body">
                             <div class="form-grid">
@@ -850,6 +850,11 @@
                                     <label for="STEAMDB_PATCH_CHANNEL_ID">Kênh nhận patch</label>
                                     <input type="hidden" id="STEAMDB_PATCH_CHANNEL_ID" name="STEAMDB_PATCH_CHANNEL_ID">
                                     <div class="readonly-list" data-display-for="STEAMDB_PATCH_CHANNEL_ID"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="STEAMDB_PATCH_MENTION_USER_IDS">User được ping khi có patch</label>
+                                    <input type="text" id="STEAMDB_PATCH_MENTION_USER_IDS" name="STEAMDB_PATCH_MENTION_USER_IDS" placeholder="ID Discord, cách nhau bằng dấu phẩy">
+                                    <div class="hint" data-hint-for="STEAMDB_PATCH_MENTION_USER_IDS"></div>
                                 </div>
                                 <div class="form-group">
                                     <label for="STEAMDB_PATCH_INTERVAL_HOURS">Check mỗi bao nhiêu giờ</label>

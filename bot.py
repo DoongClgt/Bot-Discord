@@ -56,6 +56,15 @@ GENERAL_LOG_CHANNEL_ID = int(GENERAL_LOG_CHANNEL_ID_STR) if GENERAL_LOG_CHANNEL_
 
 STEAMDB_PATCH_CHANNEL_ID_STR = os.getenv('STEAMDB_PATCH_CHANNEL_ID', '')
 STEAMDB_PATCH_CHANNEL_ID = int(STEAMDB_PATCH_CHANNEL_ID_STR) if STEAMDB_PATCH_CHANNEL_ID_STR.isdigit() else 0
+STEAMDB_PATCH_MENTION_USER_ID_STR = os.getenv('STEAMDB_PATCH_MENTION_USER_ID', '')
+STEAMDB_PATCH_MENTION_USER_IDS_RAW = os.getenv('STEAMDB_PATCH_MENTION_USER_IDS', '')
+STEAMDB_PATCH_MENTION_USER_IDS = [
+    user_id for user_id in dict.fromkeys(
+        item.strip()
+        for item in f"{STEAMDB_PATCH_MENTION_USER_ID_STR},{STEAMDB_PATCH_MENTION_USER_IDS_RAW}".split(',')
+    )
+    if user_id.isdigit()
+]
 STEAMDB_APP_IDS_RAW = os.getenv('STEAMDB_APP_IDS', '')
 def parse_steam_app_entries(raw_value):
     entries = []
@@ -799,7 +808,7 @@ async def get_steamdb_patch_channel():
             pass
     return None
 
-async def announce_steamdb_patch(channel, patch):
+async def announce_steamdb_patch(channel, patch, mention=False):
     source = patch.get("source", "Steam Events")
     embed = discord.Embed(
         title=patch["title"][:256],
@@ -816,7 +825,13 @@ async def announce_steamdb_patch(channel, patch):
     if patch.get("build_id"):
         embed.add_field(name="Build", value=patch["build_id"], inline=True)
     embed.set_footer(text=f"Patch Watcher - {source}")
-    await channel.send(embed=embed)
+    content = ""
+    allowed_mentions = discord.AllowedMentions.none()
+    if mention and STEAMDB_PATCH_MENTION_USER_IDS:
+        mentions = " ".join(f"<@{user_id}>" for user_id in STEAMDB_PATCH_MENTION_USER_IDS)
+        content = f"{mentions} Có patch/update mới."
+        allowed_mentions = discord.AllowedMentions(users=True)
+    await channel.send(content=content, embed=embed, allowed_mentions=allowed_mentions)
 
 async def send_recent_patch_info(destination, patch):
     source = patch.get("source", "Steam News")
@@ -1027,7 +1042,7 @@ async def run_steamdb_patch_check(manual=False):
     failed_announcements = 0
     for patch in patches_to_send:
         try:
-            await announce_steamdb_patch(channel, patch)
+            await announce_steamdb_patch(channel, patch, mention=not manual)
         except discord.HTTPException as e:
             failed_announcements += 1
             log_event("steamdb_check", f"Khong gui duoc embed patch {patch.get('id')}: {e}", "error")
