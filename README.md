@@ -10,7 +10,7 @@ Vietnamese setup guide: [README_VI.md](README_VI.md)
 - Discord slash commands and text fallback commands.
 - Spam trap flow: assign suspect role, delete trap messages, and ban repeat suspects.
 - Auto-delete messages/embeds by configured target user and keywords.
-- Steam patch/update watcher with Steam Web API fallback.
+- Steam patch/update watcher using Steam Events.
 - Manage watched Steam games with `/game add`, `/game remove`, and `/game list`.
 
 ## Quick Start

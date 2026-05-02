@@ -8,7 +8,7 @@ Bot Discord dùng để quản lý spam trap, xoá tin nhắn theo điều kiệ
 - Slash command và text command cho Discord.
 - Spam trap: gắn role nghi phạm, xoá tin nhắn, ban khi nghi phạm tiếp tục nhắn vào kênh bẫy.
 - Auto-delete: xoá embed/tin nhắn theo user ID và từ khoá cấu hình.
-- Steam watcher: theo dõi patch/update game từ SteamDB/Steam Web API.
+- Steam watcher: theo dõi patch/update game bằng Steam Events.
 - Quản lý danh sách game bằng lệnh `/game add`, `/game remove`, `/game list`.
 
 ## Cài Đặt Trên VPS
@@ -144,7 +144,7 @@ Biến `.env` quan trọng:
 ```env
 STEAMDB_PATCH_CHANNEL_ID=''
 STEAMDB_APP_IDS=''
-STEAMDB_PATCH_SCHEDULE_HOURS='0,6,12,18'
+STEAMDB_PATCH_INTERVAL_HOURS='1'
 STEAMDB_PATCH_MAJOR_ONLY='false'
 STEAMDB_PATCH_LIMIT='25'
 STEAM_WATCHER_MAX_AGE_DAYS='7'
@@ -156,7 +156,7 @@ Ghi chú:
 - `STEAMDB_APP_IDS` hỗ trợ dạng `730,570` hoặc `730_Counter-Strike 2, 570_Dota 2`.
 - `/game add <SteamAppID>` lấy tên game từ Steam Store, ghi vào `.env`, rồi reload cấu hình.
 - Nếu bot chạy trên VPS, `/game add` cập nhật `.env` trên VPS, không cập nhật `.env` local.
-- SteamDB có thể chặn `403`; bot có fallback sang Steam Web API.
+- Bot dùng Steam Events để lấy REGULAR UPDATE/MAJOR UPDATE.
 
 ## Kiểm Tra
 

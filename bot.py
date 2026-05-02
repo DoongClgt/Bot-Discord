@@ -75,6 +75,13 @@ STEAM_APP_ENTRIES = parse_steam_app_entries(STEAMDB_APP_IDS_RAW)
 STEAMDB_APP_IDS = {entry["id"] for entry in STEAM_APP_ENTRIES}
 STEAM_APP_NAMES = {entry["id"]: entry["name"] for entry in STEAM_APP_ENTRIES}
 ENV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+STEAMDB_PATCH_INTERVAL_HOURS_RAW = os.getenv('STEAMDB_PATCH_INTERVAL_HOURS', '').strip()
+STEAMDB_PATCH_INTERVAL_HOURS = (
+    int(STEAMDB_PATCH_INTERVAL_HOURS_RAW)
+    if STEAMDB_PATCH_INTERVAL_HOURS_RAW.isdigit()
+    else 0
+)
+STEAMDB_PATCH_INTERVAL_HOURS = min(max(STEAMDB_PATCH_INTERVAL_HOURS, 0), 168)
 STEAMDB_PATCH_SCHEDULE_HOURS_RAW = os.getenv('STEAMDB_PATCH_SCHEDULE_HOURS', '0,6,12,18')
 STEAMDB_PATCH_SCHEDULE_HOURS = sorted({
     int(hour.strip()) for hour in STEAMDB_PATCH_SCHEDULE_HOURS_RAW.split(',')
@@ -1050,6 +1057,9 @@ async def run_steamdb_patch_check(manual=False):
 
 def seconds_until_next_steamdb_check(now=None):
     now = now or datetime.datetime.now()
+    if STEAMDB_PATCH_INTERVAL_HOURS:
+        return STEAMDB_PATCH_INTERVAL_HOURS * 3600
+
     for hour in STEAMDB_PATCH_SCHEDULE_HOURS:
         target = now.replace(hour=hour, minute=0, second=0, microsecond=0)
         if target > now:
