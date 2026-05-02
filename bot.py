@@ -462,8 +462,12 @@ async def handle_spam_trap_message(message: discord.Message, actual_channel_id: 
     is_spam_trap_channel = actual_channel_id in SPAM_TRAP_CHANNEL_IDS
     is_suspect_channel = bool(SUSPECT_CHANNEL_ID and actual_channel_id == SUSPECT_CHANNEL_ID)
     if (is_spam_trap_channel or is_suspect_channel) and has_spam_trap_excluded_role(message.author):
-        log_event("spam_trap", f"Bo qua {message.author.id}: co role mien tru spam trap.")
-        return False
+        try:
+            await message.delete()
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+        log_event("spam_trap", f"Xoa tin nhan tu {message.author.id}: co role mien tru, khong ban/gan role.")
+        return True
 
     if is_spam_trap_channel:
         role, had_role, error = await ensure_suspect_role(

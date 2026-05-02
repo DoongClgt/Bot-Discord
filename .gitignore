@@ -12,6 +12,7 @@ data/ipc_response.txt
 data/*.tmp
 
 scripts/
+.claude/
 
 .venv/
 venv/
