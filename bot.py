@@ -48,7 +48,8 @@ SPAM_TRAP_CHANNEL_ID_2_STR = os.getenv('SPAM_TRAP_CHANNEL_ID_2', '')
 SPAM_TRAP_CHANNEL_ID_2 = int(SPAM_TRAP_CHANNEL_ID_2_STR) if SPAM_TRAP_CHANNEL_ID_2_STR.isdigit() else 0
 SPAM_TRAP_CHANNEL_IDS = {channel_id for channel_id in (SPAM_TRAP_CHANNEL_ID, SPAM_TRAP_CHANNEL_ID_2) if channel_id}
 SPAM_TRAP_EXCLUDED_ROLE_IDS = parse_int_set(os.getenv('SPAM_TRAP_EXCLUDED_ROLE_IDS', ''))
-SUSPECT_ROLE_NAME = os.getenv('SUSPECT_ROLE_NAME', 'Nghi Phạm')
+SUSPECT_ROLE_ID_STR = os.getenv('SUSPECT_ROLE_ID', '')
+SUSPECT_ROLE_ID = int(SUSPECT_ROLE_ID_STR) if SUSPECT_ROLE_ID_STR.isdigit() else 0
 
 BAN_LOG_THREAD_ID_STR = os.getenv('BAN_LOG_THREAD_ID', '')
 BAN_LOG_THREAD_ID = int(BAN_LOG_THREAD_ID_STR) if BAN_LOG_THREAD_ID_STR.isdigit() else 0
@@ -372,16 +373,12 @@ async def send_configured_ban_log(guild, log_content):
     await send_general_log(guild, log_content)
 
 async def get_or_create_suspect_role(guild: discord.Guild):
-    role = discord.utils.get(guild.roles, name=SUSPECT_ROLE_NAME)
+    if not SUSPECT_ROLE_ID:
+        return None, "Chua cau hinh SUSPECT_ROLE_ID trong .env."
+    role = guild.get_role(SUSPECT_ROLE_ID)
     if role:
         return role, None
-    try:
-        role = await guild.create_role(name=SUSPECT_ROLE_NAME, reason="Spam trap auto-created suspect role")
-        return role, None
-    except discord.Forbidden:
-        return None, "Bot chua co quyen Manage Roles hoac role bot thap hon role can tao."
-    except discord.HTTPException as e:
-        return None, f"Khong tao duoc role nghi pham: {e}"
+    return None, f"Khong tim thay role nghi pham co ID {SUSPECT_ROLE_ID} trong guild."
 
 async def sync_spam_trap_ban_counter(guild: discord.Guild, increment: bool = False):
     state = load_spam_trap_state()

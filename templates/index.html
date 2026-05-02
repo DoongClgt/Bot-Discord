@@ -780,8 +780,8 @@
                                     <div class="hint" data-hint-for="TARGET_USER_ID"></div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="SUSPECT_ROLE_NAME">Tên role nghi phạm</label>
-                                    <input type="text" id="SUSPECT_ROLE_NAME" name="SUSPECT_ROLE_NAME">
+                                    <label for="SUSPECT_ROLE_ID">ID role nghi phạm</label>
+                                    <input type="text" id="SUSPECT_ROLE_ID" name="SUSPECT_ROLE_ID" placeholder="Role ID dạng số">
                                 </div>
                                 <div class="form-group">
                                     <label for="SPAM_TRAP_EXCLUDED_ROLE_IDS">Role miễn bẫy/nghi phạm</label>
@@ -1320,7 +1320,7 @@
         }
 
         function applyConfigFallbacks(config) {
-            ['TARGET_USER_ID', 'SUSPECT_ROLE_NAME'].forEach(id => {
+            ['TARGET_USER_ID', 'SUSPECT_ROLE_ID'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el && config[id] && !el.value) el.value = config[id];
             });
