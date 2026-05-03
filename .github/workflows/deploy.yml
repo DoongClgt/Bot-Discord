@@ -1,0 +1,41 @@
+name: Deploy Bot-Discord
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: bot-discord-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Trigger VPS deploy webhook
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call deploy endpoint
+        env:
+          DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+          DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+
+          url="${DEPLOY_URL:-https://doongu.canhcutteam.com/api/deploy}"
+          headers=(
+            --header "Authorization: Bearer $DEPLOY_WEBHOOK_TOKEN"
+            --header "Content-Type: application/json"
+          )
+
+          # Optional: needed when the tunnel is protected by Cloudflare Access.
+          if [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
+            headers+=(--header "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID")
+            headers+=(--header "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
+          fi
+
+          curl --fail-with-body --show-error --silent \
+            --request POST "$url" \
+            "${headers[@]}" \
+            --data '{}'
