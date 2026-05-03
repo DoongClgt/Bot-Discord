@@ -6,12 +6,13 @@ Vietnamese setup guide: [README_VI.md](README_VI.md)
 
 ## Features
 
-- Flask dashboard for status, config, logs, and manual actions.
+- Flask dashboard with Start/Stop, Save Config (auto-restarts the bot), Version tab (git commit), and recent logs (UTC+7 timestamps).
 - Discord slash commands and text fallback commands.
-- Spam trap flow: assign suspect role, delete trap messages, and ban repeat suspects.
-- Auto-delete messages/embeds by configured target user and keywords.
-- Steam patch/update watcher using Steam Events.
-- Manage watched Steam games with `/game add`, `/game remove`, and `/game list`.
+- Spam trap flow: assign suspect role, delete trap messages, ban repeat suspects, and a self-updating ban counter in `SUSPECT_CHANNEL_ID`.
+- Ban audit log: every ban (including manual admin bans) is logged into `BAN_LOG_THREAD_ID` with audit info.
+- Auto-delete embeds by configured target user, keywords, category, and channel filters.
+- Steam patch/update watcher using Steam Events with interval or scheduled hours.
+- Manage watched Steam games with `/game add`, `/game remove`, `/game list`, and `/game help`.
 
 ## Quick Start
 
@@ -58,22 +59,47 @@ http://127.0.0.1:5000
 
 ```env
 DISCORD_TOKEN=''
+
+# Auto-delete embed
+TARGET_USER_ID=''
+TARGET_KEYWORDS=''
+TARGET_CATEGORY_IDS=''
+EXCLUDED_CHANNEL_IDS=''
+
+# Spam trap
+SUSPECT_CHANNEL_ID=''
+SPAM_TRAP_CHANNEL_ID=''
+SPAM_TRAP_CHANNEL_ID_2=''
+SPAM_TRAP_EXCLUDED_ROLE_IDS=''
+SUSPECT_ROLE_ID=''
+
+# Log channels
+BAN_LOG_THREAD_ID=''
+STARTUP_CHANNEL_ID=''
+GENERAL_LOG_CHANNEL_ID=''
+
+# Steam watcher
 STEAMDB_PATCH_CHANNEL_ID=''
 STEAMDB_PATCH_MENTION_USER_ID=''
 STEAMDB_PATCH_MENTION_USER_IDS=''
 STEAMDB_APP_IDS=''
-SPAM_TRAP_EXCLUDED_ROLE_IDS=''
-SUSPECT_CHANNEL_ID=''
-SPAM_TRAP_CHANNEL_ID=''
-SPAM_TRAP_CHANNEL_ID_2=''
-BAN_LOG_THREAD_ID=''
+STEAMDB_PATCH_INTERVAL_HOURS='1'
+STEAMDB_PATCH_SCHEDULE_HOURS='0,6,12,18'
+STEAMDB_PATCH_MAJOR_ONLY='false'
+STEAMDB_PATCH_LIMIT='25'
+STEAM_WATCHER_MAX_AGE_DAYS='7'
+
+# Dashboard
 DASHBOARD_HOST='127.0.0.1'
 DASHBOARD_PORT='5000'
+DASHBOARD_PUBLIC_URL=''
 ```
 
 Do not commit `.env`; use `.env.example` as the public template.
 
 ## Commands
+
+Slash commands:
 
 ```text
 /ping
@@ -87,7 +113,13 @@ Do not commit `.env`; use `.env.example` as the public template.
 /game help
 ```
 
-Admin commands require `Manage Messages`.
+Text command aliases also available: `/online`, `/status`, `/patchcheck`, `/sdbcheckrecent`, `/patchrecent`, `/rescanchannels`.
+
+Notes:
+
+- Admin commands require `Manage Messages`.
+- `/dlt` slash replies ephemerally (visible only to the caller).
+- `/check` and `/game remove` slash support autocomplete from the configured game list.
 
 ## Cloudflare Tunnel
 

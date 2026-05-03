@@ -541,9 +541,14 @@ def atomic_write_json(path, data, indent=2):
         _json.dump(data, f, ensure_ascii=False, indent=indent)
     os.replace(tmp_path, path)
 
+UTC7 = datetime.timezone(datetime.timedelta(hours=7))
+
+def now_utc7_string():
+    return datetime.datetime.now(datetime.timezone.utc).astimezone(UTC7).strftime("%d-%m-%Y %H:%M:%S UTC+7")
+
 def log_event(event, message, level="info", **extra):
     payload = {
-        "time": datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
+        "time": now_utc7_string(),
         "level": level,
         "event": event,
         "message": str(message),
@@ -1196,10 +1201,6 @@ async def steamdb_recent_command(ctx, *selection):
         await send_text_chunks(ctx, "Khong tim thay game phu hop.\n" + build_steam_check_table())
         return
 
-    if len(app_ids) > 10:
-        await ctx.send("Chi check toi da 10 App ID moi lan de tranh spam kenh.")
-        app_ids = app_ids[:10]
-
     await ctx.send(f"Dang lay patch/update gan nhat cho {len(app_ids)} game...")
     try:
         recent, timed_out = await fetch_recent_steam_news_for_apps_async(app_ids)
@@ -1334,7 +1335,7 @@ async def slash_check(interaction: discord.Interaction, game: str | None = None)
         await send_text_chunks(interaction.followup, "Khong tim thay game phu hop.\n" + build_steam_check_table())
         return
 
-    check_ids = app_ids[:10]
+    check_ids = app_ids
     print(f"/check slash: fetching recent Steam Events updates for {check_ids}")
     log_event("check", f"Dang lay patch/update cho {', '.join(check_ids)}.")
     await interaction.followup.send(f"Dang lay patch/update gan nhat cho {len(check_ids)} game...")

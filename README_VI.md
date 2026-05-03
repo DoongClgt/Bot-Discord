@@ -4,12 +4,13 @@ Bot Discord dùng để quản lý spam trap, xoá tin nhắn theo điều kiệ
 
 ## Tính Năng Chính
 
-- Dashboard web chạy bằng Flask.
+- Dashboard web chạy bằng Flask, có nút Start/Stop bot, Save Config (tự restart bot), tab Version (git commit) và xem log gần nhất (timestamp UTC+7).
 - Slash command và text command cho Discord.
-- Spam trap: gắn role nghi phạm, xoá tin nhắn, ban khi nghi phạm tiếp tục nhắn vào kênh bẫy.
-- Auto-delete: xoá embed/tin nhắn theo user ID và từ khoá cấu hình.
+- Spam trap: gắn role nghi phạm, xoá tin nhắn, ban khi nghi phạm tiếp tục nhắn vào kênh bẫy; có bộ đếm "mít tơ bít đã ban" tự cập nhật trong `SUSPECT_CHANNEL_ID`.
+- Ghi log mọi lượt ban (kể cả admin ban tay) vào thread `BAN_LOG_THREAD_ID` kèm thông tin audit log.
+- Auto-delete: xoá embed/tin nhắn theo user ID và từ khoá cấu hình; có thể giới hạn theo category/loại trừ kênh.
 - Steam watcher: theo dõi patch/update game bằng Steam Events.
-- Quản lý danh sách game bằng lệnh `/game add`, `/game remove`, `/game list`.
+- Quản lý danh sách game bằng lệnh `/game add`, `/game remove`, `/game list`, `/game help`.
 
 ## Cài Đặt Trên VPS
 
@@ -32,15 +33,30 @@ nano .env
 
 ```env
 DISCORD_TOKEN=''
+
+# Auto-delete embed
+TARGET_USER_ID=''
+TARGET_KEYWORDS=''
+TARGET_CATEGORY_IDS=''
+EXCLUDED_CHANNEL_IDS=''
+
+# Spam trap
+SUSPECT_CHANNEL_ID=''
+SPAM_TRAP_CHANNEL_ID=''
+SPAM_TRAP_CHANNEL_ID_2=''
+SPAM_TRAP_EXCLUDED_ROLE_IDS=''
+SUSPECT_ROLE_ID=''
+
+# Log channels
+BAN_LOG_THREAD_ID=''
+STARTUP_CHANNEL_ID=''
+GENERAL_LOG_CHANNEL_ID=''
+
+# Steam watcher
 STEAMDB_PATCH_CHANNEL_ID=''
 STEAMDB_PATCH_MENTION_USER_ID=''
 STEAMDB_PATCH_MENTION_USER_IDS=''
 STEAMDB_APP_IDS=''
-SPAM_TRAP_EXCLUDED_ROLE_IDS=''
-SUSPECT_CHANNEL_ID=''
-SPAM_TRAP_CHANNEL_ID=''
-SPAM_TRAP_CHANNEL_ID_2=''
-BAN_LOG_THREAD_ID=''
 ```
 
 ## Chạy Bot
@@ -90,6 +106,8 @@ http://127.0.0.1:5000
 
 Không nên mở trực tiếp port `5000` ra internet nếu dashboard chưa có lớp bảo vệ riêng.
 
+Lưu ý: khi bấm Save Config trên dashboard, bot đang chạy sẽ tự được dừng và start lại để nạp `.env` mới.
+
 ## Lệnh Discord
 
 Text command:
@@ -102,6 +120,7 @@ Text command:
 /game list
 /game add <SteamAppID>
 /game remove <index|SteamAppID|tên game>
+/game help
 /refreshchannels / /rescanchannels
 ```
 
@@ -119,7 +138,11 @@ Slash command:
 /game help
 ```
 
-Các lệnh quản trị cần quyền `Manage Messages`.
+Ghi chú:
+
+- Các lệnh quản trị cần quyền `Manage Messages`.
+- `/dlt` slash trả lời ephemeral (chỉ người gọi thấy).
+- `/check` và `/game remove` slash có autocomplete theo bảng game.
 
 ## Spam Trap
 
@@ -139,7 +162,27 @@ Cách hoạt động:
 - Người nhắn vào `SUSPECT_CHANNEL_ID` cũng bị gắn role nghi phạm và tin nhắn bị xoá.
 - Người đã có role nghi phạm mà nhắn vào kênh bẫy sẽ bị ban.
 - Người có role trong `SPAM_TRAP_EXCLUDED_ROLE_IDS` được miễn trừ: tin nhắn ở kênh bẫy/nghi phạm vẫn bị xoá, nhưng **không** bị gắn role nghi phạm và **không** bị ban.
-- Log ban gửi vào thread `BAN_LOG_THREAD_ID`.
+- Log ban gửi vào thread `BAN_LOG_THREAD_ID`. Nếu không gửi được, fallback sang `GENERAL_LOG_CHANNEL_ID`.
+- Bot duy trì 1 message bộ đếm "Số mít tơ bít đã ban: N" trong `SUSPECT_CHANNEL_ID`, tự edit khi có ban mới.
+
+## Ban Log Tự Động
+
+Ngoài spam trap, bot còn lắng nghe sự kiện `on_member_ban`. Mỗi khi có người bị ban (kể cả admin ban tay), bot gửi embed "Búa Tạ Đã Vung 🔨" vào `BAN_LOG_THREAD_ID` kèm thông tin từ audit log (ai ban, lý do nếu có).
+
+## Tin Nhắn Khởi Động
+
+Đặt `STARTUP_CHANNEL_ID` để bot gửi tin "🟢 Hệ thống phòng chống Spam đã được khởi động..." mỗi lần online.
+
+## Auto-Delete Embed
+
+Bot xoá embed khi cả 3 điều kiện đúng:
+
+- `message.author.id == TARGET_USER_ID`.
+- Embed chứa ít nhất 1 keyword trong `TARGET_KEYWORDS` (so sánh lower-case).
+- Nếu có `TARGET_CATEGORY_IDS`, kênh phải nằm trong danh sách đó.
+- Nếu có `EXCLUDED_CHANNEL_IDS`, kênh không nằm trong danh sách loại trừ.
+
+Lệnh `/dlt [limit]` quét chủ động mọi kênh trong `TARGET_CATEGORY_IDS` và xoá những tin của `TARGET_USER_ID` khớp keyword. Mặc định 100 tin/kênh, tối đa 500.
 
 ## Steam Watcher
 
@@ -149,6 +192,7 @@ Biến `.env` quan trọng:
 STEAMDB_PATCH_CHANNEL_ID=''
 STEAMDB_APP_IDS=''
 STEAMDB_PATCH_INTERVAL_HOURS='1'
+STEAMDB_PATCH_SCHEDULE_HOURS='0,6,12,18'
 STEAMDB_PATCH_MAJOR_ONLY='false'
 STEAMDB_PATCH_LIMIT='25'
 STEAM_WATCHER_MAX_AGE_DAYS='7'
@@ -157,6 +201,10 @@ STEAM_WATCHER_MAX_AGE_DAYS='7'
 Ghi chú:
 
 - Watcher chỉ chạy khi có `STEAMDB_PATCH_CHANNEL_ID`.
+- `STEAMDB_PATCH_INTERVAL_HOURS > 0`: chạy theo interval (giờ), clamp 1–168.
+- `STEAMDB_PATCH_INTERVAL_HOURS = 0`: chạy theo các giờ trong `STEAMDB_PATCH_SCHEDULE_HOURS` (mặc định `0,6,12,18`).
+- `STEAM_WATCHER_MAX_AGE_DAYS` lọc bỏ event cũ hơn N ngày (mặc định 7).
+- Mỗi lần check chỉ đẩy tối đa 1 patch để tránh spam; phần còn lại được ghi nhớ.
 - `STEAMDB_PATCH_MENTION_USER_ID` ping một người; `STEAMDB_PATCH_MENTION_USER_IDS` ping nhiều người, cách nhau bằng dấu phẩy.
 - `STEAMDB_APP_IDS` hỗ trợ dạng `730,570` hoặc `730_Counter-Strike 2, 570_Dota 2`.
 - `/game add <SteamAppID>` lấy tên game từ Steam Store, ghi vào `.env`, rồi reload cấu hình.
