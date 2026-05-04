@@ -209,7 +209,7 @@ Ghi chú:
 - `STEAMDB_APP_IDS` hỗ trợ dạng `730,570` hoặc `730_Counter-Strike 2, 570_Dota 2`.
 - `/game add <SteamAppID>` lấy tên game từ Steam Store, ghi vào `.env`, rồi reload cấu hình.
 - Nếu bot chạy trên VPS, `/game add` cập nhật `.env` trên VPS, không cập nhật `.env` local.
-- Bot dùng Steam Events để lấy REGULAR UPDATE/MAJOR UPDATE.
+- Bot dùng Steam Events để lấy REGULAR UPDATE/MAJOR UPDATE. Mapping `event_type` của Steam Partner: `12` = MAJOR UPDATE, `13` = REGULAR UPDATE. `STEAMDB_PATCH_MAJOR_ONLY=true` sẽ chỉ lọc `event_type=12`.
 
 ## Kiểm Tra
 

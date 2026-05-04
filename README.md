@@ -120,6 +120,7 @@ Notes:
 - Admin commands require `Manage Messages`.
 - `/dlt` slash replies ephemerally (visible only to the caller).
 - `/check` and `/game remove` slash support autocomplete from the configured game list.
+- Steam Watcher uses Steam Partner event type mapping: `event_type=12` is `MAJOR UPDATE`, `event_type=13` is `REGULAR UPDATE`. `STEAMDB_PATCH_MAJOR_ONLY=true` filters to `event_type=12` only.
 
 ## Cloudflare Tunnel
 

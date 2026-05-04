@@ -117,8 +117,8 @@ RECENT_CHECK_TIMEOUT = 20
 STEAM_WATCHER_SEND_LIMIT = 1
 STEAM_RECENT_PATCH_CHECK_COUNT = 20
 STEAM_EVENT_TYPE_LABELS = {
-    12: "REGULAR UPDATE",
-    13: "MAJOR UPDATE",
+    12: "MAJOR UPDATE",
+    13: "REGULAR UPDATE",
 }
 
 def safe_http_url(url, fallback=None):
@@ -162,7 +162,7 @@ def first_localized_text(values):
     return ""
 
 def steam_event_type_filter():
-    return "13" if STEAMDB_PATCH_MAJOR_ONLY else "12,13"
+    return "12" if STEAMDB_PATCH_MAJOR_ONLY else "12,13"
 
 def steam_event_url(app_id, event_gid):
     return f"https://store.steampowered.com/news/app/{app_id}/view/{event_gid}"
