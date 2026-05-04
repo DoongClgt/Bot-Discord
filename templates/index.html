@@ -4,1465 +4,428 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bảng điều khiển Bot</title>
+    <title>Bot Dashboard</title>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #0c0d0f;
-            --surface: #15171b;
-            --surface-2: #1c2026;
-            --surface-3: #262b33;
-            --surface-soft: #101216;
-            --border: #2a3038;
-            --border-strong: #404956;
-            --text: #f7f3ea;
-            --muted: #b5bbbf;
-            --muted-2: #80888f;
-            --green: #37d67a;
-            --green-dark: #16834b;
-            --red: #f05252;
-            --red-dark: #a92727;
-            --blue: #58b7ff;
-            --blue-dark: #1c6f9f;
-            --yellow: #f59e0b;
-            --orange: #f97316;
-            --purple: #8b7cf6;
-            --ok-bg: rgba(45, 212, 123, 0.12);
-            --ok-border: rgba(45, 212, 123, 0.42);
-            --danger-bg: rgba(240, 82, 82, 0.12);
-            --danger-border: rgba(240, 82, 82, 0.42);
-            --info-bg: rgba(75, 182, 245, 0.12);
-            --info-border: rgba(75, 182, 245, 0.42);
-            --shadow: 0 20px 48px rgba(0, 0, 0, 0.28);
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            background: var(--bg);
-            color: var(--text);
-            font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            letter-spacing: 0;
-        }
-
-        button,
-        input,
-        select {
-            font: inherit;
-        }
-
-        button {
-            min-height: 40px;
-            border: 1px solid transparent;
-            border-radius: 7px;
-            padding: 9px 14px;
-            color: #ffffff;
-            font-weight: 700;
-            cursor: pointer;
-            transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
-        }
-
-        button:hover:not(:disabled) {
-            border-color: var(--border-strong);
-        }
-
-        button:disabled {
-            opacity: 0.55;
-            cursor: not-allowed;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 6px;
-            color: var(--muted);
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        input,
-        select {
-            width: 100%;
-            min-height: 40px;
-            border: 1px solid var(--border);
-            border-radius: 7px;
-            background: #0f1115;
-            color: var(--text);
-            padding: 9px 10px;
-            outline: none;
-        }
-
-        input:focus,
-        select:focus {
-            border-color: var(--blue);
-            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.14);
-        }
-
-        select[multiple] {
-            min-height: 132px;
-            padding: 6px;
-        }
-
-        select option {
-            background: #111317;
-            color: var(--text);
-        }
-
-        .app-shell {
-            min-height: 100vh;
-            border-top: 3px solid var(--green);
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 999px;
-            background: var(--muted-2);
-        }
-
-        .status-online .status-dot {
-            background: var(--green);
-            box-shadow: 0 0 16px rgba(34, 197, 94, 0.7);
-        }
-
-        .status-offline .status-dot {
-            background: var(--red);
-            box-shadow: 0 0 16px rgba(239, 68, 68, 0.7);
-        }
-
-        .status-meta {
-            margin-top: 6px;
-            color: var(--muted);
-            font-size: 12px;
-        }
-
-        .main {
-            min-width: 0;
-            width: min(1480px, 100%);
-            margin: 0 auto;
-            padding: 24px;
-            overflow: auto;
-        }
-
-        .topbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-            margin-bottom: 16px;
-            border-bottom: 1px solid var(--border);
-            background: transparent;
-            padding: 4px 0 18px;
-        }
-
-        .page-title {
-            margin: 0;
-            font-size: 28px;
-            line-height: 1.12;
-            font-weight: 800;
-        }
-
-        .page-subtitle {
-            margin-top: 5px;
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        .top-meta-row {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            min-height: 28px;
-            border: 1px solid var(--border);
-            border-radius: 999px;
-            background: var(--surface-soft);
-            color: var(--muted);
-            padding: 4px 10px;
-            font-size: 12px;
-            font-weight: 800;
-        }
-
-        .status-pill.online {
-            border-color: var(--ok-border);
-            background: var(--ok-bg);
-            color: #b8f7d3;
-        }
-
-        .status-pill.offline {
-            border-color: var(--danger-border);
-            background: var(--danger-bg);
-            color: #fecaca;
-        }
-
-        .status-pill.disconnected {
-            border-color: var(--info-border);
-            background: var(--info-bg);
-            color: #bae6fd;
-        }
-
-        .status-dot-small {
-            width: 8px;
-            height: 8px;
-            border-radius: 999px;
-            background: currentColor;
-        }
-
-        .top-meta {
-            color: var(--muted);
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .top-actions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-        }
-
-        .top-actions button,
-        .split-actions button,
-        .button-row button {
-            min-width: 132px;
-        }
-
-        .tab-nav {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 18px;
-            border: 1px solid var(--border);
-            border-radius: 7px;
-            background: var(--surface-soft);
-            padding: 5px;
-            width: fit-content;
-            max-width: 100%;
-        }
-
-        .tab-button {
-            min-height: 36px;
-            background: transparent;
-            border-color: transparent;
-            color: var(--muted);
-            padding: 8px 14px;
-        }
-
-        .tab-button.active,
-        .tab-button:hover:not(:disabled) {
-            background: #242b33;
-            color: var(--text);
-            border-color: var(--border-strong);
-        }
-
-        .panel {
-            border: 1px solid var(--border);
-            border-radius: 7px;
-            background: var(--surface);
-            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
-            overflow: hidden;
-        }
-
-        .panel-header {
-            padding: 14px 18px;
-            border-bottom: 1px solid var(--border);
-            background: #181b20;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        .panel-title {
-            margin: 0;
-            font-size: 14px;
-            font-weight: 800;
-        }
-
-        .panel-note {
-            color: var(--muted);
-            font-size: 12px;
-        }
-
-        .panel-body {
-            padding: 18px;
-        }
-
-        .grid {
-            display: grid;
-            gap: 16px;
-        }
-
-        .grid-2 {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .grid-3 {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-
-        .metric-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0;
-            border: 1px solid var(--border);
-            border-radius: 7px;
-            background: var(--surface);
-            overflow: hidden;
-        }
-
-        .metric {
-            border-right: 1px solid var(--border);
-            background: transparent;
-            padding: 15px 16px;
-            min-height: 84px;
-        }
-
-        .metric:last-child {
-            border-right: 0;
-        }
-
-        .metric:first-child {
-            background: linear-gradient(90deg, rgba(55, 214, 122, 0.09), transparent);
-        }
-
-        .metric-label {
-            color: var(--muted);
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .metric-value {
-            margin-top: 8px;
-            font-size: 21px;
-            font-weight: 800;
-            overflow-wrap: anywhere;
-        }
-
-        .tab-page {
-            display: grid;
-            gap: 14px;
-        }
-
-        .dashboard-tab {
-            display: none;
-        }
-
-        .dashboard-tab.active {
-            display: grid;
-            gap: 18px;
-        }
-
-        .button-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: #147a46;
-            border-color: var(--ok-border);
-        }
-
-        .btn-danger {
-            background: #9f2b2b;
-            border-color: var(--danger-border);
-        }
-
-        .btn-blue {
-            background: #16628e;
-            border-color: var(--info-border);
-        }
-
-        .btn-purple {
-            background: #5946b8;
-            border-color: rgba(155, 124, 255, 0.42);
-        }
-
-        .btn-pink {
-            background: #a53668;
-        }
-
-        .btn-muted {
-            background: var(--surface-3);
-            border-color: var(--border-strong);
-        }
-
-        .btn-muted:hover:not(:disabled) {
-            background: #2b3442;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
-        }
-
-        .metric-grid + .form-grid,
-        .metric-grid + .grid {
-            margin-top: 18px;
-        }
-
-        .version-metrics .metric {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            min-height: 106px;
-        }
-
-        .version-metrics .metric-label {
-            margin-bottom: 10px;
-        }
-
-        .version-metrics .metric-value {
-            margin-top: 0;
-            font-size: 18px;
-            line-height: 1.35;
-        }
-
-        .version-metrics .version-detail {
-            font-size: 16px;
-        }
-
-        .form-grid-3 {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px;
-        }
-
-        .form-group {
-            min-width: 0;
-        }
-
-        .form-group.full {
-            grid-column: 1 / -1;
-        }
-
-        .inline-group {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 116px;
-            gap: 10px;
-        }
-
-        .progress-wrap {
-            display: none;
-            margin-top: 14px;
-            border: 1px solid var(--border);
-            border-radius: 7px;
-            background: var(--surface-soft);
-            padding: 12px;
-        }
-
-        .progress-top {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            font-size: 13px;
-            margin-bottom: 8px;
-        }
-
-        .progress-track {
-            height: 10px;
-            overflow: hidden;
-            border-radius: 999px;
-            background: #0b1017;
-        }
-
-        .progress-bar {
-            width: 0%;
-            height: 100%;
-            background: linear-gradient(90deg, var(--green), var(--blue));
-            transition: width 0.3s ease;
-        }
-
-        .progress-detail {
-            margin-top: 8px;
-            color: var(--muted);
-            font-size: 12px;
-        }
-
-        .notice {
-            position: fixed;
-            right: 22px;
-            bottom: 22px;
-            z-index: 10;
-            max-width: min(420px, calc(100vw - 32px));
-            border: 1px solid var(--border);
-            border-radius: 7px;
-            background: #0d1117;
-            color: var(--text);
-            padding: 12px 14px;
-            box-shadow: var(--shadow);
-            opacity: 0;
-            transform: translateY(8px);
-            pointer-events: none;
-            transition: opacity 0.18s ease, transform 0.18s ease;
-        }
-
-        .notice.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .hint {
-            min-height: 16px;
-            margin-top: 5px;
-            color: var(--green);
-            font-size: 12px;
-        }
-
-        .readonly-list {
-            min-height: 42px;
-            border: 1px solid var(--border);
-            border-radius: 7px;
-            background: var(--surface-soft);
-            color: var(--text);
-            padding: 8px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            align-items: center;
-            overflow-wrap: anywhere;
-        }
-
-        .readonly-chip {
-            max-width: 100%;
-            border: 1px solid var(--border-strong);
-            border-radius: 5px;
-            background: #20262d;
-            padding: 5px 8px;
-            color: var(--text);
-            font-size: 13px;
-            overflow-wrap: anywhere;
-        }
-
-        .readonly-empty {
-            color: var(--muted-2);
-            padding: 4px 2px;
-            font-size: 13px;
-        }
-
-        .log-table-wrap {
-            overflow-x: auto;
-            border: 1px solid var(--border);
-            border-radius: 7px;
-            background: var(--surface-soft);
-        }
-
-        .log-table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 760px;
-            font-size: 13px;
-        }
-
-        .log-table th,
-        .log-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border);
-            text-align: left;
-            vertical-align: top;
-        }
-
-        .log-table th {
-            color: var(--muted);
-            font-size: 11px;
-            font-weight: 800;
-            text-transform: uppercase;
-            background: #1a1e24;
-            position: sticky;
-            top: 0;
-            z-index: 1;
-        }
-
-        .log-table tr:hover td {
-            background: rgba(255, 255, 255, 0.025);
-        }
-
-        .log-table tr:last-child td {
-            border-bottom: 0;
-        }
-
-        .version-detail {
-            font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-            font-size: 13px;
-        }
-
-        .log-level {
-            display: inline-flex;
-            min-width: 52px;
-            justify-content: center;
-            border-radius: 999px;
-            padding: 3px 8px;
-            color: #fff;
-            font-size: 11px;
-            font-weight: 800;
-            text-transform: uppercase;
-        }
-
-        .log-level.info {
-            background: var(--blue-dark);
-        }
-
-        .log-level.warn {
-            background: var(--yellow);
-        }
-
-        .log-level.error {
-            background: var(--red-dark);
-        }
-
-        .log-message {
-            color: var(--text);
-            word-break: break-word;
-        }
-
-        .split-actions {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            padding: 4px 0;
-        }
-
-        @media (max-width: 980px) {
-            .metric-grid,
-            .grid-3,
-            .grid-2,
-            .form-grid,
-            .form-grid-3 {
-                grid-template-columns: 1fr;
-            }
-
-            .metric {
-                border-right: 0;
-                border-bottom: 1px solid var(--border);
-            }
-
-            .metric:last-child {
-                border-bottom: 0;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .main {
-                padding: 12px;
-            }
-
-            .topbar {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-            .top-actions,
-            .tab-nav,
-            .button-row,
-            .split-actions {
-                flex-direction: column;
-                width: 100%;
-            }
-
-            button {
-                width: 100%;
-            }
-
-            .panel-header {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
 </head>
 
 <body>
-    <div class="app-shell">
+    <div class="app">
+
+        <!-- ── Sidebar ──────────────────────────────────────────────── -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo">D</div>
+                <div>
+                    <div class="brand-name">Bot Dashboard</div>
+                    <div class="brand-sub">Discord moderator</div>
+                </div>
+            </div>
+
+            <div class="nav-section-label">Điều khiển</div>
+            <nav class="nav">
+                <button class="nav-item active" type="button" data-page="dashboard">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3zm0 8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-2zm8-8a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V3zm0 10a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v0a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z"/></svg>
+                    <span>Tổng quan</span>
+                </button>
+                <button class="nav-item" type="button" data-page="settings">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M9.4 1.5a1 1 0 0 0-2.8 0l-.2 1.4a5 5 0 0 0-1.4.8L3.7 3a1 1 0 0 0-1.4 1.4l.7 1.3a5 5 0 0 0-.8 1.4L1 7.3a1 1 0 0 0 0 2l1.4.2c.2.5.4 1 .8 1.4L2.3 12a1 1 0 0 0 1.4 1.4l1.3-.7c.4.4.9.6 1.4.8l.2 1.4a1 1 0 0 0 2 0l.2-1.4a5 5 0 0 0 1.4-.8l1.3.7a1 1 0 0 0 1.4-1.4l-.7-1.3a5 5 0 0 0 .8-1.4l1.4-.2a1 1 0 0 0 0-2L13.7 6a5 5 0 0 0-.8-1.4L13.7 3a1 1 0 0 0-1.4-1.4L11 3.7a5 5 0 0 0-1.4-.8l-.2-1.4zM8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>
+                    <span>Cấu hình</span>
+                </button>
+                <button class="nav-item" type="button" data-page="steam">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm-.4 5.7 2.8 4 1.7-1.2A2.5 2.5 0 1 1 9.6 12L5.3 13.6 4 9.4l1-.6 1.6 1.4a1 1 0 0 1 .4 0L7.6 5.7zm3.4 4.5a1.4 1.4 0 1 0-1.4 1.4 1.4 1.4 0 0 0 1.4-1.4z"/></svg>
+                    <span>Steam Watcher</span>
+                </button>
+                <button class="nav-item" type="button" data-page="logs">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M3 1.5h7l3 3v10A1.5 1.5 0 0 1 11.5 16h-8A1.5 1.5 0 0 1 2 14.5v-12A1.5 1.5 0 0 1 3 1.5zm6.5 1v3a.5.5 0 0 0 .5.5h3l-3.5-3.5zM4.5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1h-6zm0 2a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1h-6zm0 2a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1h-4z"/></svg>
+                    <span>Log gần đây</span>
+                </button>
+                <button class="nav-item" type="button" data-page="banlog">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.46 5.46 0 0 1 3.48 1.25L3.75 11.48A5.5 5.5 0 0 1 8 2.5zm4.25 3.02A5.5 5.5 0 0 1 8 13.5a5.46 5.46 0 0 1-3.48-1.25l7.73-7.73z"/></svg>
+                    <span>Ban log</span>
+                </button>
+                <button class="nav-item" type="button" data-page="version">
+                    <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM7 4a1 1 0 1 1 2 0 1 1 0 0 1-2 0zm.25 3.5h1.5v5h-1.5v-5z"/></svg>
+                    <span>Version</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer disconnected" id="sidebarStatus">
+                <span class="status-dot"></span>
+                <span id="sidebarStatusText">Đang kiểm tra</span>
+            </div>
+        </aside>
+
+        <!-- ── Main ──────────────────────────────────────────────────── -->
         <main class="main">
             <div class="topbar">
-                <div>
-                    <h1 id="pageTitle" class="page-title">Điều khiển Bot</h1>
-                    <div id="pageSubtitle" class="page-subtitle">Bot Discord</div>
-                    <div class="top-meta-row">
-                        <span id="headerStatus" class="status-pill disconnected">
-                            <span class="status-dot-small"></span>
-                            <span id="headerStatusText">Đang kiểm tra</span>
-                        </span>
-                        <span id="headerPid" class="top-meta">PID: -</span>
-                    </div>
+                <div class="topbar-title">
+                    <h1 id="pageTitle">Tổng quan</h1>
+                    <div class="topbar-sub" id="pageSubtitle">Trạng thái và tác vụ nhanh</div>
                 </div>
-                <div class="top-actions">
-                    <button id="btnStart" class="btn-primary" onclick="startBot()">Bật bot</button>
-                    <button id="btnStop" class="btn-danger" onclick="stopBot()">Tắt bot</button>
+                <div class="topbar-actions">
+                    <span class="status-pill disconnected" id="topStatusPill">
+                        <span class="dot"></span>
+                        <span id="topStatusText">Đang kiểm tra</span>
+                    </span>
+                    <span class="status-pill" id="topPid">PID: -</span>
+                    <button id="btnStart" class="btn success" type="button">Bật bot</button>
+                    <button id="btnStop" class="btn danger" type="button">Tắt bot</button>
                 </div>
             </div>
 
-            <div class="tab-nav">
-                <button class="tab-button active" type="button" data-dashboard-tab="control" onclick="switchDashboardTab('control')">Điều khiển</button>
-                <button class="tab-button" type="button" data-dashboard-tab="version" onclick="switchDashboardTab('version')">Version</button>
-                <button class="tab-button" type="button" data-dashboard-tab="logs" onclick="switchDashboardTab('logs')">Log gần đây</button>
-            </div>
+            <div class="content">
 
-            <div id="dashboard-control" class="dashboard-tab active">
-            <section id="tab-overview" class="tab-page">
-                <div class="metric-grid">
-                    <div class="metric">
-                        <div class="metric-label">Trạng thái</div>
-                        <div id="metricStatus" class="metric-value">Đang kiểm tra</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-label">Process ID</div>
-                        <div id="metricPid" class="metric-value">-</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-label">Kênh đã cache</div>
-                        <div id="metricChannels" class="metric-value">-</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-label">Lần cập nhật UI</div>
-                        <div id="metricTime" class="metric-value">-</div>
-                    </div>
-                </div>
-
-                <div class="grid">
-                    <div class="panel">
-                        <div class="panel-header">
-                            <h2 class="panel-title">Tác vụ nhanh</h2>
-                            <span class="panel-note">Gửi lệnh qua IPC đến bot đang chạy</span>
+                <!-- ── Page: dashboard ────────────────────────────── -->
+                <section id="page-dashboard" class="page active">
+                    <div class="metric-grid">
+                        <div class="metric accent">
+                            <div class="metric-label">Trạng thái</div>
+                            <div class="metric-value" id="metricStatus">Đang kiểm tra</div>
+                            <div class="metric-foot">Cập nhật mỗi 3s</div>
                         </div>
-                        <div class="panel-body">
-                            <div class="button-row">
-                                <button id="btnRefreshChannels" class="btn-blue" onclick="sendRefreshChannels()">Quét lại kênh</button>
-                                <button id="btnSteamDB" class="btn-purple" onclick="sendSteamDBCheck()">Check Steam patch</button>
+                        <div class="metric">
+                            <div class="metric-label">Process ID</div>
+                            <div class="metric-value" id="metricPid">-</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Kênh đã cache</div>
+                            <div class="metric-value" id="metricChannels">-</div>
+                            <div class="metric-foot">Channels + categories + roles</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Uptime bot</div>
+                            <div class="metric-value" id="metricUptime">-</div>
+                        </div>
+                    </div>
+
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <div class="chart-head">
+                                <span class="label">CPU bot process</span>
+                                <span class="value" id="cpuValue">-</span>
                             </div>
+                            <svg class="spark" id="cpuSparkline" preserveAspectRatio="none"></svg>
                         </div>
-                    </div>
-                </div>
-            </section>
-
-            <section id="tab-settings" class="tab-page">
-                <form id="settingsForm" class="grid">
-                    <div class="split-actions">
-                        <button type="button" class="btn-primary" onclick="saveSettings()">Lưu và restart bot</button>
-                        <button type="button" class="btn-blue" onclick="loadSettings()">Tải lại cấu hình</button>
-                    </div>
-
-                    <div class="panel">
-                        <div class="panel-header">
-                            <h2 class="panel-title">Mục tiêu và lọc tin</h2>
-                            <span class="panel-note">ID kênh/role chỉ sửa trong .env</span>
-                        </div>
-                        <div class="panel-body">
-                            <div class="form-grid">
-                                <div class="form-group full">
-                                    <label for="DISCORD_TOKEN">Bot token</label>
-                                    <input type="password" id="DISCORD_TOKEN" name="DISCORD_TOKEN" placeholder="Discord bot token">
-                                </div>
-                                <div class="form-group full">
-                                    <label for="TARGET_KEYWORDS">Từ khóa vi phạm</label>
-                                    <input type="text" id="TARGET_KEYWORDS" name="TARGET_KEYWORDS" placeholder="bad word usage, too many infractions">
-                                </div>
-                                <div class="form-group">
-                                    <label for="TARGET_USER_ID">ID mục tiêu</label>
-                                    <input type="text" id="TARGET_USER_ID" name="TARGET_USER_ID" placeholder="1222619860585152604">
-                                    <div class="hint" data-hint-for="TARGET_USER_ID"></div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="SUSPECT_ROLE_ID">ID role nghi phạm</label>
-                                    <input type="text" id="SUSPECT_ROLE_ID" name="SUSPECT_ROLE_ID" placeholder="Role ID dạng số">
-                                </div>
-                                <div class="form-group">
-                                    <label for="SPAM_TRAP_EXCLUDED_ROLE_IDS">Role miễn bẫy/nghi phạm</label>
-                                    <input type="text" id="SPAM_TRAP_EXCLUDED_ROLE_IDS" name="SPAM_TRAP_EXCLUDED_ROLE_IDS" placeholder="Role ID, cách nhau bằng dấu phẩy">
-                                    <div class="hint" data-hint-for="SPAM_TRAP_EXCLUDED_ROLE_IDS"></div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="TARGET_CATEGORY_IDS">Danh mục áp dụng</label>
-                                    <input type="hidden" id="TARGET_CATEGORY_IDS" name="TARGET_CATEGORY_IDS">
-                                    <div class="readonly-list" data-display-for="TARGET_CATEGORY_IDS"></div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="EXCLUDED_CHANNEL_IDS">Kênh bỏ qua</label>
-                                    <input type="hidden" id="EXCLUDED_CHANNEL_IDS" name="EXCLUDED_CHANNEL_IDS">
-                                    <div class="readonly-list" data-display-for="EXCLUDED_CHANNEL_IDS"></div>
-                                </div>
-                                <div class="form-group full">
-                                    <label for="SPAM_TRAP_CHANNEL_ID">Kênh bẫy spam</label>
-                                    <input type="hidden" id="SPAM_TRAP_CHANNEL_ID" name="SPAM_TRAP_CHANNEL_ID">
-                                    <input type="hidden" id="SPAM_TRAP_CHANNEL_ID_2" name="SPAM_TRAP_CHANNEL_ID_2">
-                                    <div class="readonly-list" data-display-for-many="SPAM_TRAP_CHANNEL_ID,SPAM_TRAP_CHANNEL_ID_2"></div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="SUSPECT_CHANNEL_ID">Kênh nghi phạm</label>
-                                    <input type="hidden" id="SUSPECT_CHANNEL_ID" name="SUSPECT_CHANNEL_ID">
-                                    <div class="readonly-list" data-display-for="SUSPECT_CHANNEL_ID"></div>
-                                </div>
+                        <div class="chart-card green">
+                            <div class="chart-head">
+                                <span class="label">RAM bot process</span>
+                                <span class="value" id="ramValue">-</span>
                             </div>
+                            <svg class="spark" id="ramSparkline" preserveAspectRatio="none"></svg>
                         </div>
                     </div>
 
-                    <div class="panel">
-                        <div class="panel-header">
-                            <h2 class="panel-title">Kênh thông báo và log</h2>
-                            <span class="panel-note">Hiện tên theo ID trong .env</span>
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Tác vụ nhanh</h2>
+                            <span class="card-note">Gửi lệnh qua IPC đến bot đang chạy</span>
                         </div>
-                        <div class="panel-body">
-                            <div class="form-grid-3">
-                                <div class="form-group">
-                                    <label for="GENERAL_LOG_CHANNEL_ID">Log chung</label>
-                                    <input type="hidden" id="GENERAL_LOG_CHANNEL_ID" name="GENERAL_LOG_CHANNEL_ID">
-                                    <div class="readonly-list" data-display-for="GENERAL_LOG_CHANNEL_ID"></div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="STARTUP_CHANNEL_ID">Thông báo startup</label>
-                                    <input type="hidden" id="STARTUP_CHANNEL_ID" name="STARTUP_CHANNEL_ID">
-                                    <div class="readonly-list" data-display-for="STARTUP_CHANNEL_ID"></div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="BAN_LOG_THREAD_ID">Thread ban</label>
-                                    <input type="hidden" id="BAN_LOG_THREAD_ID" name="BAN_LOG_THREAD_ID">
-                                    <div class="readonly-list" data-display-for="BAN_LOG_THREAD_ID"></div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="DELETE_LOG_THREAD_ID">Thread xóa tin</label>
-                                    <input type="hidden" id="DELETE_LOG_THREAD_ID" name="DELETE_LOG_THREAD_ID">
-                                    <div class="readonly-list" data-display-for="DELETE_LOG_THREAD_ID"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="panel">
-                        <div class="panel-header">
-                            <h2 class="panel-title">Steam patch watcher</h2>
-                            <span class="panel-note">Cấu hình kênh, ping và chu kỳ check trong .env</span>
-                        </div>
-                        <div class="panel-body">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="STEAMDB_PATCH_CHANNEL_ID">Kênh nhận patch</label>
-                                    <input type="hidden" id="STEAMDB_PATCH_CHANNEL_ID" name="STEAMDB_PATCH_CHANNEL_ID">
-                                    <div class="readonly-list" data-display-for="STEAMDB_PATCH_CHANNEL_ID"></div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="STEAMDB_PATCH_MENTION_USER_IDS">User được ping khi có patch</label>
-                                    <input type="text" id="STEAMDB_PATCH_MENTION_USER_IDS" name="STEAMDB_PATCH_MENTION_USER_IDS" placeholder="ID Discord, cách nhau bằng dấu phẩy">
-                                    <div class="hint" data-hint-for="STEAMDB_PATCH_MENTION_USER_IDS"></div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="STEAMDB_PATCH_INTERVAL_HOURS">Check mỗi bao nhiêu giờ</label>
-                                    <input type="number" id="STEAMDB_PATCH_INTERVAL_HOURS" name="STEAMDB_PATCH_INTERVAL_HOURS" min="1" max="168" placeholder="1">
-                                </div>
-                                <div class="form-group">
-                                    <label for="STEAMDB_APP_IDS">Steam App IDs</label>
-                                    <input type="hidden" id="STEAMDB_APP_IDS" name="STEAMDB_APP_IDS">
-                                    <div class="readonly-list" data-steam-app-display="STEAMDB_APP_IDS"></div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="STEAMDB_PATCH_LIMIT">Số mục đọc mỗi lần</label>
-                                    <input type="number" id="STEAMDB_PATCH_LIMIT" name="STEAMDB_PATCH_LIMIT" min="5" max="100" placeholder="25">
-                                </div>
-                                <div class="form-group">
-                                    <label for="STEAMDB_PATCH_MAJOR_ONLY">Chỉ major patches</label>
-                                    <select id="STEAMDB_PATCH_MAJOR_ONLY" name="STEAMDB_PATCH_MAJOR_ONLY">
-                                        <option value="false">false</option>
-                                        <option value="true">true</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                </form>
-            </section>
-            </div>
-
-            <div id="dashboard-version" class="dashboard-tab">
-                <section class="tab-page">
-                    <div class="panel">
-                        <div class="panel-header">
-                            <h2 class="panel-title">Version</h2>
-                            <button id="btnRefreshVersion" class="btn-muted" onclick="loadVersion()">Tải lại version</button>
-                        </div>
-                        <div class="panel-body">
-                            <div class="metric-grid version-metrics">
-                                <div class="metric">
-                                    <div class="metric-label">Branch</div>
-                                    <div id="versionBranch" class="metric-value version-detail">-</div>
-                                </div>
-                                <div class="metric">
-                                    <div class="metric-label">Commit</div>
-                                    <div id="versionCommit" class="metric-value version-detail">-</div>
-                                </div>
-                                <div class="metric">
-                                    <div class="metric-label">Trạng thái repo</div>
-                                    <div id="versionDirty" class="metric-value">-</div>
-                                </div>
-                                <div class="metric">
-                                    <div class="metric-label">Python</div>
-                                    <div id="versionPython" class="metric-value version-detail">-</div>
-                                </div>
-                            </div>
-                            <div class="form-grid">
-                                <div class="form-group full">
-                                    <label>Thông điệp commit</label>
-                                    <div id="versionSubject" class="readonly-list">-</div>
-                                </div>
-                                <div class="form-group">
-                                    <label>Thời gian commit</label>
-                                    <div id="versionTime" class="readonly-list">-</div>
-                                </div>
-                                <div class="form-group">
-                                    <label>Dashboard bind</label>
-                                    <div id="versionBind" class="readonly-list version-detail">-</div>
-                                </div>
-                                <div class="form-group full">
-                                    <label>Public URL</label>
-                                    <div id="versionPublicUrl" class="readonly-list version-detail">-</div>
-                                </div>
-                                <div class="form-group full">
-                                    <label>Full commit</label>
-                                    <div id="versionFullCommit" class="readonly-list version-detail">-</div>
-                                </div>
-                                <div class="form-group">
-                                    <label>Lần kiểm tra</label>
-                                    <div id="versionCheckedAt" class="readonly-list">-</div>
-                                </div>
+                        <div class="card-body">
+                            <div class="btn-row">
+                                <button id="btnRefreshChannels" class="btn" type="button" data-action="refresh-channels">Quét lại kênh</button>
+                                <button id="btnSteamDB" class="btn fuchsia" type="button" data-action="steamdb-check">Check Steam patch</button>
+                                <button class="btn secondary" type="button" data-action="open-channels">Xem channel cache</button>
+                                <button class="btn secondary" type="button" data-action="open-env">Xem .env hiện tại</button>
                             </div>
                         </div>
                     </div>
                 </section>
-            </div>
 
-            <div id="dashboard-logs" class="dashboard-tab">
-                <section class="tab-page">
-                    <div class="panel">
-                        <div class="panel-header">
-                            <h2 class="panel-title">Log gần đây</h2>
-                            <button id="btnRefreshLogs" class="btn-muted" onclick="loadLogs()">Tải lại log</button>
+                <!-- ── Page: settings ─────────────────────────────── -->
+                <section id="page-settings" class="page">
+                    <form id="settingsForm" autocomplete="off">
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="card-title">Mục tiêu và lọc tin</h2>
+                                <div class="split-actions">
+                                    <button type="button" class="btn success" data-action="save-settings">Lưu và restart bot</button>
+                                    <button type="button" class="btn secondary" data-action="reload-settings">Tải lại</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-grid">
+                                    <div class="form-group full">
+                                        <label for="DISCORD_TOKEN">Bot token</label>
+                                        <input type="password" id="DISCORD_TOKEN" name="DISCORD_TOKEN" placeholder="Discord bot token">
+                                    </div>
+                                    <div class="form-group full">
+                                        <label for="TARGET_KEYWORDS">Từ khóa vi phạm</label>
+                                        <input type="text" id="TARGET_KEYWORDS" name="TARGET_KEYWORDS" placeholder="bad word usage, too many infractions">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="TARGET_USER_ID">ID người dùng mục tiêu</label>
+                                        <input type="text" id="TARGET_USER_ID" name="TARGET_USER_ID" placeholder="1222619860585152604">
+                                        <div class="hint" data-hint-for="TARGET_USER_ID"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="SUSPECT_ROLE_ID">ID role nghi phạm</label>
+                                        <input type="text" id="SUSPECT_ROLE_ID" name="SUSPECT_ROLE_ID" placeholder="Role ID dạng số">
+                                    </div>
+                                    <div class="form-group full">
+                                        <label for="SPAM_TRAP_EXCLUDED_ROLE_IDS">Role miễn bẫy/nghi phạm</label>
+                                        <input type="text" id="SPAM_TRAP_EXCLUDED_ROLE_IDS" name="SPAM_TRAP_EXCLUDED_ROLE_IDS" placeholder="Role ID, cách nhau bằng dấu phẩy">
+                                        <div class="hint" data-hint-for="SPAM_TRAP_EXCLUDED_ROLE_IDS"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Danh mục áp dụng</label>
+                                        <input type="hidden" id="TARGET_CATEGORY_IDS" name="TARGET_CATEGORY_IDS">
+                                        <div class="readonly-list" data-display-for="TARGET_CATEGORY_IDS"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Kênh bỏ qua</label>
+                                        <input type="hidden" id="EXCLUDED_CHANNEL_IDS" name="EXCLUDED_CHANNEL_IDS">
+                                        <div class="readonly-list" data-display-for="EXCLUDED_CHANNEL_IDS"></div>
+                                    </div>
+                                    <div class="form-group full">
+                                        <label>Kênh bẫy spam</label>
+                                        <input type="hidden" id="SPAM_TRAP_CHANNEL_ID" name="SPAM_TRAP_CHANNEL_ID">
+                                        <input type="hidden" id="SPAM_TRAP_CHANNEL_ID_2" name="SPAM_TRAP_CHANNEL_ID_2">
+                                        <div class="readonly-list" data-display-for-many="SPAM_TRAP_CHANNEL_ID,SPAM_TRAP_CHANNEL_ID_2"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Kênh nghi phạm</label>
+                                        <input type="hidden" id="SUSPECT_CHANNEL_ID" name="SUSPECT_CHANNEL_ID">
+                                        <div class="readonly-list" data-display-for="SUSPECT_CHANNEL_ID"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="panel-body">
+
+                        <div class="card" style="margin-top: 18px;">
+                            <div class="card-header">
+                                <h2 class="card-title">Kênh thông báo và log</h2>
+                                <span class="card-note">Hiện tên theo ID trong .env</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-grid cols-3">
+                                    <div class="form-group">
+                                        <label>Log chung</label>
+                                        <input type="hidden" id="GENERAL_LOG_CHANNEL_ID" name="GENERAL_LOG_CHANNEL_ID">
+                                        <div class="readonly-list" data-display-for="GENERAL_LOG_CHANNEL_ID"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Thông báo startup</label>
+                                        <input type="hidden" id="STARTUP_CHANNEL_ID" name="STARTUP_CHANNEL_ID">
+                                        <div class="readonly-list" data-display-for="STARTUP_CHANNEL_ID"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Thread ban</label>
+                                        <input type="hidden" id="BAN_LOG_THREAD_ID" name="BAN_LOG_THREAD_ID">
+                                        <div class="readonly-list" data-display-for="BAN_LOG_THREAD_ID"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Thread xóa tin</label>
+                                        <input type="hidden" id="DELETE_LOG_THREAD_ID" name="DELETE_LOG_THREAD_ID">
+                                        <div class="readonly-list" data-display-for="DELETE_LOG_THREAD_ID"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- ── Page: steam ─────────────────────────────────── -->
+                <section id="page-steam" class="page">
+                    <form id="steamForm" autocomplete="off">
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="card-title">Steam Watcher</h2>
+                                <div class="split-actions">
+                                    <button type="button" class="btn success" data-action="save-settings">Lưu và restart bot</button>
+                                    <button type="button" class="btn fuchsia" data-action="steamdb-check" id="btnSteamDBPanel">Check Steam patch ngay</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label>Kênh nhận patch</label>
+                                        <input type="hidden" id="STEAMDB_PATCH_CHANNEL_ID" name="STEAMDB_PATCH_CHANNEL_ID">
+                                        <div class="readonly-list" data-display-for="STEAMDB_PATCH_CHANNEL_ID"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="STEAMDB_PATCH_MENTION_USER_IDS">User được ping khi có patch</label>
+                                        <input type="text" id="STEAMDB_PATCH_MENTION_USER_IDS" name="STEAMDB_PATCH_MENTION_USER_IDS" placeholder="ID Discord, cách nhau bằng dấu phẩy">
+                                        <div class="hint" data-hint-for="STEAMDB_PATCH_MENTION_USER_IDS"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="STEAMDB_PATCH_INTERVAL_HOURS">Check mỗi bao nhiêu giờ</label>
+                                        <input type="number" id="STEAMDB_PATCH_INTERVAL_HOURS" name="STEAMDB_PATCH_INTERVAL_HOURS" min="1" max="168" placeholder="1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="STEAMDB_PATCH_LIMIT">Số mục đọc mỗi lần</label>
+                                        <input type="number" id="STEAMDB_PATCH_LIMIT" name="STEAMDB_PATCH_LIMIT" min="5" max="100" placeholder="25">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="STEAMDB_PATCH_MAJOR_ONLY">Chỉ major patch (event_type=12)</label>
+                                        <select id="STEAMDB_PATCH_MAJOR_ONLY" name="STEAMDB_PATCH_MAJOR_ONLY">
+                                            <option value="false">false</option>
+                                            <option value="true">true</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group full">
+                                        <label>Steam App IDs</label>
+                                        <input type="hidden" id="STEAMDB_APP_IDS" name="STEAMDB_APP_IDS">
+                                        <div class="readonly-list" data-steam-app-display="STEAMDB_APP_IDS"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- ── Page: logs ──────────────────────────────────── -->
+                <section id="page-logs" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Log gần đây</h2>
+                            <button class="btn secondary" type="button" data-action="reload-logs">Tải lại log</button>
+                        </div>
+                        <div class="card-body">
                             <div class="log-table-wrap">
                                 <table class="log-table">
                                     <thead>
                                         <tr>
-                                            <th>Thời gian</th>
-                                            <th>Mức</th>
-                                            <th>Sự kiện</th>
+                                            <th style="width: 150px;">Thời gian</th>
+                                            <th style="width: 90px;">Mức</th>
+                                            <th style="width: 180px;">Sự kiện</th>
                                             <th>Nội dung</th>
                                         </tr>
                                     </thead>
                                     <tbody id="logTableBody">
-                                        <tr>
-                                            <td colspan="4" class="readonly-empty">Chưa có log.</td>
-                                        </tr>
+                                        <tr><td colspan="4" class="readonly-empty">Chưa có log.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
                 </section>
-            </div>
 
+                <!-- ── Page: ban log ───────────────────────────────── -->
+                <section id="page-banlog" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Ban log</h2>
+                            <div class="log-controls">
+                                <span class="card-note" id="banLogTotal"></span>
+                                <button class="btn secondary" type="button" data-action="reload-banlog">Tải lại</button>
+                                <button class="btn" type="button" data-action="download-banlog">Tải file .jsonl</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="log-table-wrap">
+                                <table class="log-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 170px;">Thời gian</th>
+                                            <th style="width: 220px;">User</th>
+                                            <th style="width: 200px;">Kênh trigger</th>
+                                            <th>Lý do</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="banLogTableBody">
+                                        <tr><td colspan="4" class="readonly-empty">Chưa có ban nào.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ── Page: version ──────────────────────────────── -->
+                <section id="page-version" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Version</h2>
+                            <button class="btn secondary" type="button" data-action="reload-version">Tải lại</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="metric-grid">
+                                <div class="metric">
+                                    <div class="metric-label">Branch</div>
+                                    <div class="metric-value small" id="versionBranch">-</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Commit</div>
+                                    <div class="metric-value small" id="versionCommit">-</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Trạng thái repo</div>
+                                    <div class="metric-value small" id="versionDirty">-</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Python</div>
+                                    <div class="metric-value small" id="versionPython">-</div>
+                                </div>
+                            </div>
+                            <div class="form-grid" style="margin-top: 14px;">
+                                <div class="form-group full">
+                                    <label>Thông điệp commit</label>
+                                    <div class="readonly-list" id="versionSubject">-</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Thời gian commit</label>
+                                    <div class="readonly-list" id="versionTime">-</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Dashboard bind</label>
+                                    <div class="readonly-list" id="versionBind">-</div>
+                                </div>
+                                <div class="form-group full">
+                                    <label>Public URL</label>
+                                    <div class="readonly-list" id="versionPublicUrl">-</div>
+                                </div>
+                                <div class="form-group full">
+                                    <label>Full commit</label>
+                                    <div class="readonly-list" id="versionFullCommit">-</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Lần kiểm tra</label>
+                                    <div class="readonly-list" id="versionCheckedAt">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
         </main>
     </div>
 
-    <div id="notification" class="notice">Sẵn sàng.</div>
+    <!-- Toast container -->
+    <div id="toastStack" class="toast-stack"></div>
 
-    <script>
-        const statusEls = {
-            metricStatus: document.getElementById('metricStatus'),
-            metricPid: document.getElementById('metricPid'),
-            metricChannels: document.getElementById('metricChannels'),
-            metricTime: document.getElementById('metricTime'),
-            headerStatus: document.getElementById('headerStatus'),
-            headerStatusText: document.getElementById('headerStatusText'),
-            headerPid: document.getElementById('headerPid'),
-            btnStart: document.getElementById('btnStart'),
-            btnStop: document.getElementById('btnStop')
-        };
+    <!-- Channels modal -->
+    <div id="channelsModal" class="modal-backdrop" role="dialog" aria-modal="true">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="card-title">Channel cache</h2>
+                <button class="btn ghost" type="button" data-action="close-modal">Đóng</button>
+            </div>
+            <div class="modal-body">
+                <input id="channelsModalSearch" class="modal-search" placeholder="Tìm theo ID hoặc tên...">
+                <div id="channelsModalBody"></div>
+            </div>
+        </div>
+    </div>
 
-        let channelMap = {};
-        let lastConfig = {};
-        let notificationTimer = null;
-        let commandPollTimer = null;
-        let progressPollTimer = null;
+    <!-- ENV modal -->
+    <div id="envModal" class="modal-backdrop" role="dialog" aria-modal="true">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="card-title">Cấu hình .env hiện tại</h2>
+                <button class="btn ghost" type="button" data-action="close-modal">Đóng</button>
+            </div>
+            <div class="modal-body" id="envModalBody"></div>
+        </div>
+    </div>
 
-        function switchDashboardTab(tabName) {
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.dashboardTab === tabName);
-            });
-            document.querySelectorAll('.dashboard-tab').forEach(tab => {
-                tab.classList.toggle('active', tab.id === 'dashboard-' + tabName);
-            });
-            if (tabName === 'logs') {
-                loadLogs();
-            }
-            if (tabName === 'version') {
-                loadVersion();
-            }
-        }
-
-        function showNotification(message) {
-            const box = document.getElementById('notification');
-            box.textContent = message || 'S\u1eb5n s\u00e0ng.';
-            box.classList.add('show');
-            clearTimeout(notificationTimer);
-            notificationTimer = setTimeout(() => box.classList.remove('show'), 4500);
-        }
-
-        function nowText() {
-            return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-        }
-
-        function setStatus(state, pid) {
-            if (state === 'online') {
-                statusEls.metricStatus.textContent = 'Online';
-                statusEls.metricPid.textContent = pid;
-                statusEls.headerStatus.className = 'status-pill online';
-                statusEls.headerStatusText.textContent = 'Bot online';
-                statusEls.headerPid.textContent = `PID: ${pid || '-'}`;
-                statusEls.btnStart.disabled = true;
-                statusEls.btnStop.disabled = false;
-            } else {
-                statusEls.metricStatus.textContent = state === 'disconnected' ? 'Mất kết nối' : 'Offline';
-                statusEls.metricPid.textContent = '-';
-                statusEls.headerStatus.className = 'status-pill ' + (state === 'disconnected' ? 'disconnected' : 'offline');
-                statusEls.headerStatusText.textContent = state === 'disconnected' ? 'Mất kết nối' : 'Bot offline';
-                statusEls.headerPid.textContent = 'PID: -';
-                statusEls.btnStart.disabled = false;
-                statusEls.btnStop.disabled = true;
-            }
-            statusEls.metricTime.textContent = nowText();
-        }
-
-        async function fetchStatus() {
-            try {
-                const res = await fetch('/api/status');
-                const data = await res.json();
-                setStatus(data.status, data.pid || '-');
-            } catch (err) {
-                setStatus('disconnected', '-');
-            }
-        }
-
-        async function startBot() {
-            statusEls.btnStart.disabled = true;
-            showNotification('\u0110ang kh\u1edfi \u0111\u1ed9ng bot...');
-            try {
-                const res = await fetch('/api/start', { method: 'POST' });
-                const data = await res.json();
-                showNotification(data.message);
-                setTimeout(fetchStatus, 1500);
-            } catch (err) {
-                showNotification('Kh\u00f4ng g\u1eedi \u0111\u01b0\u1ee3c l\u1ec7nh b\u1eadt bot.');
-                statusEls.btnStart.disabled = false;
-            }
-        }
-
-        async function stopBot() {
-            statusEls.btnStop.disabled = true;
-            showNotification('\u0110ang t\u1eaft bot...');
-            try {
-                const res = await fetch('/api/stop', { method: 'POST' });
-                const data = await res.json();
-                showNotification(data.message);
-                setTimeout(fetchStatus, 1200);
-            } catch (err) {
-                showNotification('Kh\u00f4ng g\u1eedi \u0111\u01b0\u1ee3c l\u1ec7nh t\u1eaft bot.');
-                statusEls.btnStop.disabled = false;
-            }
-        }
-
-        async function postCommand(command, args) {
-            const res = await fetch('/api/command', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command, args: args || {} })
-            });
-            const data = await res.json();
-            showNotification(data.message);
-            if (!res.ok || !data.success) {
-                throw new Error(data.message || 'Command failed');
-            }
-            return data;
-        }
-
-        function setButtonBusy(ids, busy, label) {
-            ids.forEach(id => {
-                const btn = document.getElementById(id);
-                if (!btn) return;
-                btn.disabled = busy;
-                if (label) {
-                    if (!btn.dataset.originalText) btn.dataset.originalText = btn.textContent;
-                    btn.textContent = busy ? label : btn.dataset.originalText;
-                }
-            });
-        }
-
-        function pollCommandResult(onDone) {
-            clearInterval(commandPollTimer);
-            commandPollTimer = setInterval(async () => {
-                try {
-                    const res = await fetch('/api/command_result');
-                    const data = await res.json();
-                    if (data.done) {
-                        clearInterval(commandPollTimer);
-                        showNotification(data.message);
-                        if (onDone) onDone(data.message);
-                    }
-                } catch (err) {
-                    clearInterval(commandPollTimer);
-                    if (onDone) onDone(null, err);
-                }
-            }, 2500);
-        }
-
-        async function sendSteamDBCheck() {
-            setButtonBusy(['btnSteamDB'], true, 'Đang check...');
-            try {
-                await postCommand('steamdb_check');
-                pollCommandResult(() => setButtonBusy(['btnSteamDB'], false));
-            } catch (err) {
-                setButtonBusy(['btnSteamDB'], false);
-            }
-        }
-
-        async function sendRefreshChannels() {
-            setButtonBusy(['btnRefreshChannels'], true, 'Đang quét...');
-            try {
-                await postCommand('refresh_channels');
-                pollCommandResult(async () => {
-                    await loadChannels();
-                    populateSettingsDropdowns();
-                    setButtonBusy(['btnRefreshChannels'], false);
-                });
-            } catch (err) {
-                setButtonBusy(['btnRefreshChannels'], false);
-            }
-        }
-
-        async function loadChannels() {
-            try {
-                const res = await fetch('/api/channels');
-                channelMap = await res.json();
-                statusEls.metricChannels.textContent = Object.keys(channelMap).length;
-            } catch (err) {
-                channelMap = {};
-                statusEls.metricChannels.textContent = '-';
-            }
-        }
-
-        function setTextCell(row, text, className) {
-            const cell = document.createElement('td');
-            if (className) cell.className = className;
-            cell.textContent = text || '';
-            row.appendChild(cell);
-            return cell;
-        }
-
-        async function loadLogs() {
-            const body = document.getElementById('logTableBody');
-            if (!body) return;
-            try {
-                const res = await fetch('/api/logs?limit=100');
-                const logs = await res.json();
-                body.innerHTML = '';
-                if (!logs.length) {
-                    const row = document.createElement('tr');
-                    const cell = document.createElement('td');
-                    cell.colSpan = 4;
-                    cell.className = 'readonly-empty';
-                    cell.textContent = 'Ch\u01b0a c\u00f3 log.';
-                    row.appendChild(cell);
-                    body.appendChild(row);
-                    return;
-                }
-                logs.forEach(item => {
-                    const row = document.createElement('tr');
-                    setTextCell(row, item.time || '-');
-                    const levelCell = document.createElement('td');
-                    const badge = document.createElement('span');
-                    const level = String(item.level || 'info').toLowerCase();
-                    badge.className = 'log-level ' + level;
-                    badge.textContent = level;
-                    levelCell.appendChild(badge);
-                    row.appendChild(levelCell);
-                    setTextCell(row, item.event || '-');
-                    setTextCell(row, item.message || '', 'log-message');
-                    body.appendChild(row);
-                });
-            } catch (err) {
-                body.innerHTML = '<tr><td colspan="4" class="readonly-empty">Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c log.</td></tr>';
-            }
-        }
-
-        function setVersionText(id, value) {
-            const el = document.getElementById(id);
-            if (el) el.textContent = value || '-';
-        }
-
-        async function loadVersion() {
-            try {
-                const res = await fetch('/api/version');
-                const info = await res.json();
-                setVersionText('versionBranch', info.branch);
-                setVersionText('versionCommit', info.commit);
-                setVersionText('versionDirty', info.dirty ? 'C\u00f3 thay \u0111\u1ed5i local' : 'S\u1ea1ch');
-                setVersionText('versionPython', info.python);
-                setVersionText('versionSubject', info.commit_subject);
-                setVersionText('versionTime', info.commit_time);
-                setVersionText('versionBind', `${info.dashboard_host || '-'}:${info.dashboard_port || '-'}`);
-                setVersionText('versionPublicUrl', info.public_url || 'Ch\u01b0a c\u1ea5u h\u00ecnh');
-                setVersionText('versionFullCommit', info.full_commit);
-                setVersionText('versionCheckedAt', info.checked_at);
-            } catch (err) {
-                setVersionText('versionSubject', 'Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c th\u00f4ng tin version.');
-            }
-        }
-
-        function splitIds(value) {
-            return String(value || '').split(',').map(s => s.trim()).filter(Boolean);
-        }
-
-        function ensureSelectValue(selectEl, value) {
-            if (!selectEl || !value) return;
-            if (!selectEl.options) {
-                selectEl.value = value;
-                return;
-            }
-            if (selectEl.multiple) {
-                splitIds(value).forEach(id => ensureSelectValue(selectEl, id));
-                return;
-            }
-            const exists = Array.from(selectEl.options).some(opt => opt.value === value);
-            if (!exists) {
-                const opt = document.createElement('option');
-                opt.value = value;
-                opt.textContent = channelMap[value] || ('ID: ' + value);
-                selectEl.appendChild(opt);
-            }
-        }
-
-        function fillSelect(selectId, items, keepFirst) {
-            const sel = document.getElementById(selectId);
-            if (!sel) return;
-            const first = keepFirst && sel.options.length ? sel.options[0].cloneNode(true) : null;
-            sel.innerHTML = '';
-            if (first) sel.appendChild(first);
-            for (const [id, name] of Object.entries(items)) {
-                const opt = document.createElement('option');
-                opt.value = id;
-                opt.textContent = name;
-                sel.appendChild(opt);
-            }
-        }
-
-        function classifyChannels() {
-            const categories = {};
-            const channels = {};
-            const roles = {};
-            const users = {};
-            for (const [id, name] of Object.entries(channelMap)) {
-                if (name.startsWith('📂') || name.startsWith('Category:')) categories[id] = name;
-                else if (name.startsWith('#') || name.startsWith('💬') || name.startsWith('Thread:')) channels[id] = name;
-                else if (name.startsWith('🛡') || name.startsWith('Role:')) roles[id] = name;
-                else if (name.startsWith('👤') || name.startsWith('User:')) users[id] = name;
-            }
-            return { categories, channels, roles, users };
-        }
-
-        function populateSettingsDropdowns() {
-            renderReadOnlyDisplays();
-        }
-
-        async function loadSettings() {
-            await loadChannels();
-            populateSettingsDropdowns();
-            try {
-                const res = await fetch('/api/config');
-                const config = await res.json();
-                lastConfig = config;
-                for (const [key, value] of Object.entries(config)) {
-                    const el = document.getElementById(key);
-                    if (!el) continue;
-                    if (el.tagName === 'SELECT' && el.multiple) {
-                        ensureSelectValue(el, value);
-                        const ids = splitIds(value);
-                        Array.from(el.options).forEach(opt => {
-                            opt.selected = ids.includes(opt.value);
-                        });
-                    } else if (el.tagName === 'SELECT') {
-                        ensureSelectValue(el, value);
-                        el.value = value || '';
-                    } else {
-                        el.value = value || '';
-                    }
-                }
-                applyConfigFallbacks(config);
-                renderReadOnlyDisplays();
-                updateHints();
-            } catch (err) {
-                showNotification('Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c c\u1ea5u h\u00ecnh.');
-            }
-        }
-
-        function applyConfigFallbacks(config) {
-            ['TARGET_USER_ID', 'SUSPECT_ROLE_ID'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el && config[id] && !el.value) el.value = config[id];
-            });
-            ['SPAM_TRAP_CHANNEL_ID', 'SPAM_TRAP_CHANNEL_ID_2', 'SUSPECT_CHANNEL_ID', 'STEAMDB_PATCH_CHANNEL_ID'].forEach(id => {
-                const el = document.getElementById(id);
-                if (!el || !config[id]) return;
-                el.value = config[id];
-            });
-        }
-
-        function renderReadOnlyDisplays() {
-            document.querySelectorAll('[data-display-for]').forEach(box => {
-                const fieldId = box.dataset.displayFor;
-                const field = document.getElementById(fieldId);
-                const ids = splitIds(field ? field.value : '');
-                box.innerHTML = '';
-                if (!ids.length) {
-                    const empty = document.createElement('span');
-                    empty.className = 'readonly-empty';
-                    empty.textContent = 'Ch\u01b0a c\u1ea5u h\u00ecnh trong .env';
-                    box.appendChild(empty);
-                    return;
-                }
-                ids.forEach(id => {
-                    const chip = document.createElement('span');
-                    chip.className = 'readonly-chip';
-                    chip.textContent = channelMap[id] || ('ID: ' + id);
-                    box.appendChild(chip);
-                });
-            });
-            document.querySelectorAll('[data-display-for-many]').forEach(box => {
-                const fieldIds = box.dataset.displayForMany.split(',').map(id => id.trim()).filter(Boolean);
-                const ids = fieldIds.flatMap(fieldId => {
-                    const field = document.getElementById(fieldId);
-                    return splitIds(field ? field.value : '');
-                }).filter((id, index, list) => id && list.indexOf(id) === index);
-                box.innerHTML = '';
-                if (!ids.length) {
-                    const empty = document.createElement('span');
-                    empty.className = 'readonly-empty';
-                    empty.textContent = 'Ch\u01b0a c\u1ea5u h\u00ecnh trong .env';
-                    box.appendChild(empty);
-                    return;
-                }
-                ids.forEach(id => {
-                    const chip = document.createElement('span');
-                    chip.className = 'readonly-chip';
-                    chip.textContent = channelMap[id] || ('ID: ' + id);
-                    box.appendChild(chip);
-                });
-            });
-            renderSteamAppDisplays();
-        }
-
-        function parseSteamAppEntries(value) {
-            return splitIds(value).map(item => {
-                const match = item.match(/^(\d+)(?:[_:\-|]\s*(.+))?$/);
-                if (!match) return null;
-                return {
-                    id: match[1],
-                    name: (match[2] || ('Steam App ' + match[1])).trim()
-                };
-            }).filter(Boolean);
-        }
-
-        function renderSteamAppDisplays() {
-            document.querySelectorAll('[data-steam-app-display]').forEach(box => {
-                const fieldId = box.dataset.steamAppDisplay;
-                const field = document.getElementById(fieldId);
-                const entries = parseSteamAppEntries(field ? field.value : '');
-                box.innerHTML = '';
-                if (!entries.length) {
-                    const empty = document.createElement('span');
-                    empty.className = 'readonly-empty';
-                    empty.textContent = 'Ch\u01b0a c\u00f3 game. D\u00f9ng /game add <app_id> tr\u00ean Discord.';
-                    box.appendChild(empty);
-                    return;
-                }
-                entries.forEach((entry, index) => {
-                    const chip = document.createElement('span');
-                    chip.className = 'readonly-chip';
-                    chip.textContent = (index + 1) + '. ' + entry.id + ' - ' + entry.name;
-                    box.appendChild(chip);
-                });
-            });
-        }
-
-        function updateHints() {
-            document.querySelectorAll('[data-hint-for]').forEach(hint => {
-                const id = hint.dataset.hintFor;
-                const el = document.getElementById(id);
-                if (!el) return;
-                const update = () => {
-                    const names = splitIds(el.value).map(value => channelMap[value]).filter(Boolean);
-                    hint.textContent = names.length ? names.join(', ') : '';
-                };
-                el.oninput = update;
-                el.onchange = update;
-                update();
-            });
-        }
-
-        async function saveSettings() {
-            const form = document.getElementById('settingsForm');
-            const data = {};
-            form.querySelectorAll('input').forEach(input => {
-                if (input.name) {
-                    data[input.name] = input.type === 'hidden' && !input.value && lastConfig[input.name]
-                        ? lastConfig[input.name]
-                        : input.value;
-                }
-            });
-            form.querySelectorAll('select:not([multiple])').forEach(sel => {
-                if (sel.name) data[sel.name] = sel.value;
-            });
-            form.querySelectorAll('select[multiple]').forEach(sel => {
-                if (sel.name) data[sel.name] = Array.from(sel.selectedOptions).map(opt => opt.value).join(', ');
-            });
-
-            try {
-                const res = await fetch('/api/config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                const result = await res.json();
-                showNotification(result.message);
-                setTimeout(fetchStatus, 1500);
-            } catch (err) {
-                showNotification('Kh\u00f4ng l\u01b0u \u0111\u01b0\u1ee3c c\u1ea5u h\u00ecnh.');
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            await loadSettings();
-            await loadVersion();
-            await loadLogs();
-            fetchStatus();
-            setInterval(fetchStatus, 3000);
-            setInterval(loadLogs, 10000);
-        });
-    </script>
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 
 </html>

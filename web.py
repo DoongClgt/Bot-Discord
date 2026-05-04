@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_file, abort
 import datetime
 import json
 import psutil
@@ -18,6 +18,7 @@ IPC_CMD_FILE = os.path.join(DATA_DIR, 'ipc_cmd.txt')
 IPC_RESPONSE_FILE = os.path.join(DATA_DIR, 'ipc_response.txt')
 CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
 BOT_EVENTS_FILE = os.path.join(DATA_DIR, 'bot_events.log')
+BAN_LOG_FILE = os.path.join(DATA_DIR, 'ban_log.jsonl')
 DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "5000"))
 DASHBOARD_PUBLIC_URL = os.getenv("DASHBOARD_PUBLIC_URL", "").strip()
@@ -28,6 +29,7 @@ BOT_FILE = "bot.py"
 BOT_PATH = os.path.join(APP_ROOT, BOT_FILE)
 CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == "nt" else 0
 _bot_status_cache = {"checked_at": 0, "pid": None}
+_metrics_proc_cache = {"pid": None, "proc": None}
 
 def run_git_command(*args):
     try:
@@ -256,6 +258,84 @@ def get_logs():
 @app.route('/api/version', methods=['GET'])
 def version():
     return jsonify(get_version_info())
+
+def get_bot_metrics():
+    pid = is_bot_running()
+    if not pid:
+        _metrics_proc_cache["pid"] = None
+        _metrics_proc_cache["proc"] = None
+        return {"online": False}
+
+    proc = _metrics_proc_cache["proc"]
+    if _metrics_proc_cache["pid"] != pid or proc is None or not proc.is_running():
+        try:
+            proc = psutil.Process(pid)
+            proc.cpu_percent(interval=None)
+            _metrics_proc_cache["pid"] = pid
+            _metrics_proc_cache["proc"] = proc
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            return {"online": False}
+
+    try:
+        cpu = proc.cpu_percent(interval=None)
+        mem = proc.memory_info().rss
+        total_mem = psutil.virtual_memory().total
+        create_time = proc.create_time()
+        threads = proc.num_threads()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return {"online": False}
+
+    return {
+        "online": True,
+        "pid": pid,
+        "cpu_percent": round(cpu, 1),
+        "rss_bytes": int(mem),
+        "rss_mb": round(mem / (1024 * 1024), 1),
+        "rss_percent": round(mem / total_mem * 100, 2) if total_mem else 0,
+        "uptime_sec": max(0, int(time.time() - create_time)),
+        "threads": threads,
+        "cpu_count": psutil.cpu_count(logical=True) or 1,
+    }
+
+@app.route('/api/metrics', methods=['GET'])
+def metrics():
+    return jsonify(get_bot_metrics())
+
+@app.route('/api/ban_log', methods=['GET'])
+def ban_log_list():
+    limit_raw = request.args.get('limit', '200')
+    limit = int(limit_raw) if str(limit_raw).isdigit() else 200
+    limit = min(max(limit, 1), 1000)
+    if not os.path.exists(BAN_LOG_FILE):
+        return jsonify({"count": 0, "items": []})
+    try:
+        with open(BAN_LOG_FILE, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+    except OSError:
+        return jsonify({"count": 0, "items": []})
+
+    items = []
+    for line in lines[-limit:]:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            items.append(json.loads(line))
+        except json.JSONDecodeError:
+            items.append({"time": "", "raw": line})
+    items.reverse()
+    return jsonify({"count": len(items), "total_lines": len(lines), "items": items})
+
+@app.route('/api/ban_log/download', methods=['GET'])
+def ban_log_download():
+    if not os.path.exists(BAN_LOG_FILE):
+        return jsonify({"success": False, "message": "Chưa có ban nào để tải."}), 404
+    return send_file(
+        BAN_LOG_FILE,
+        mimetype='application/x-ndjson',
+        as_attachment=True,
+        download_name='ban_log.jsonl',
+    )
 
 if __name__ == '__main__':
     local_url = f"http://{DASHBOARD_HOST}:{DASHBOARD_PORT}"

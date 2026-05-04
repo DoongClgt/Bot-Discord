@@ -434,6 +434,18 @@ async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audi
     except (discord.Forbidden, discord.HTTPException):
         pass
 
+    author = message.author
+    guild = message.guild
+    channel = message.channel
+    roles_snapshot = []
+    if isinstance(author, discord.Member):
+        roles_snapshot = [
+            {"id": str(r.id), "name": r.name}
+            for r in author.roles
+            if guild is None or r.id != guild.id
+        ]
+    parent_channel = channel.parent if isinstance(channel, discord.Thread) else None
+
     try:
         await message.guild.ban(
             message.author,
@@ -442,6 +454,26 @@ async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audi
         )
         await update_spam_trap_ban_counter(message.guild)
         log_event("spam_trap_ban", f"Da ban {message.author.id}: {reason_text}")
+        append_ban_log({
+            "guild_id": str(guild.id) if guild else "",
+            "guild_name": guild.name if guild else "",
+            "user_id": str(author.id),
+            "username": str(author),
+            "display_name": getattr(author, "display_name", None) or str(author),
+            "user_created_at": author.created_at.isoformat() if getattr(author, "created_at", None) else "",
+            "joined_at": author.joined_at.isoformat() if getattr(author, "joined_at", None) else "",
+            "roles_at_ban": roles_snapshot,
+            "channel_id": str(channel.id) if channel else "",
+            "channel_name": getattr(channel, "name", "") or "",
+            "channel_type": str(getattr(channel, "type", "")),
+            "parent_channel_id": str(parent_channel.id) if parent_channel else "",
+            "parent_channel_name": parent_channel.name if parent_channel else "",
+            "message_id": str(message.id),
+            "message_content": (message.content or "")[:1000],
+            "message_created_at": message.created_at.isoformat() if getattr(message, "created_at", None) else "",
+            "reason_text": reason_text,
+            "audit_reason": audit_reason,
+        })
     except discord.Forbidden:
         await send_configured_ban_log(message.guild, f"Khong ban duoc {message.author.mention}: bot thieu quyen Ban Members hoac role thap.")
     except discord.HTTPException as e:
@@ -527,6 +559,7 @@ CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
 IPC_CMD_FILE = os.path.join(DATA_DIR, 'ipc_cmd.txt')
 IPC_RESPONSE_FILE = os.path.join(DATA_DIR, 'ipc_response.txt')
 BOT_EVENTS_FILE = os.path.join(DATA_DIR, 'bot_events.log')
+BAN_LOG_FILE = os.path.join(DATA_DIR, 'ban_log.jsonl')
 SPAM_TRAP_STATE_FILE = os.path.join(DATA_DIR, 'spam_trap_state.json')
 
 def atomic_write_text(path, text):
@@ -557,6 +590,15 @@ def log_event(event, message, level="info", **extra):
     try:
         with open(BOT_EVENTS_FILE, 'a', encoding='utf-8') as f:
             f.write(_json.dumps(payload, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+def append_ban_log(payload: dict):
+    record = {"time": now_utc7_string()}
+    record.update(payload or {})
+    try:
+        with open(BAN_LOG_FILE, 'a', encoding='utf-8') as f:
+            f.write(_json.dumps(record, ensure_ascii=False) + "\n")
     except Exception:
         pass
 

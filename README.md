@@ -6,7 +6,7 @@ Vietnamese setup guide: [README_VI.md](README_VI.md)
 
 ## Features
 
-- Flask dashboard with Start/Stop, Save Config (auto-restarts the bot), Version tab (git commit), and recent logs (UTC+7 timestamps).
+- Flask dashboard with Discord-themed sidebar UI (6 pages: Overview with CPU/RAM sparkline + quick actions, Settings, Steam Watcher, Logs, Ban log (history + download), Version). Save Config auto-restarts the bot. UTC+7 timestamps. HTML/CSS/JS split across `templates/index.html`, `static/dashboard.css`, `static/dashboard.js`. Ban events are appended to `data/ban_log.jsonl` and downloadable via `/api/ban_log/download`.
 - Discord slash commands and text fallback commands.
 - Spam trap flow: assign suspect role, delete trap messages, ban repeat suspects, and a self-updating ban counter in `SUSPECT_CHANNEL_ID`.
 - Ban audit log: every ban (including manual admin bans) is logged into `BAN_LOG_THREAD_ID` with audit info.
@@ -145,5 +145,5 @@ python3 -m py_compile bot.py web.py
 ```
 
 ```bash
-node -e "const fs=require('fs');const s=fs.readFileSync('templates/index.html','utf8');const m=s.match(/<script>([\s\S]*)<\/script>/);new Function(m[1]);console.log('js syntax ok')"
+node -e "const fs=require('fs');const s=fs.readFileSync('static/dashboard.js','utf8');new Function(s);console.log('js syntax ok')"
 ```

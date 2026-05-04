@@ -4,7 +4,7 @@ Bot Discord dùng để quản lý spam trap, xoá tin nhắn theo điều kiệ
 
 ## Tính Năng Chính
 
-- Dashboard web chạy bằng Flask, có nút Start/Stop bot, Save Config (tự restart bot), tab Version (git commit) và xem log gần nhất (timestamp UTC+7).
+- Dashboard web chạy bằng Flask, theme Discord, có sidebar 6 trang: Tổng quan (status + sparkline CPU/RAM + tác vụ nhanh), Cấu hình, Steam Watcher, Log gần đây, Ban log (lịch sử ban + tải file), Version. Save Config tự restart bot, log timestamp UTC+7.
 - Slash command và text command cho Discord.
 - Spam trap: gắn role nghi phạm, xoá tin nhắn, ban khi nghi phạm tiếp tục nhắn vào kênh bẫy; có bộ đếm "mít tơ bít đã ban" tự cập nhật trong `SUSPECT_CHANNEL_ID`.
 - Ghi log mọi lượt ban (kể cả admin ban tay) vào thread `BAN_LOG_THREAD_ID` kèm thông tin audit log.
@@ -220,5 +220,5 @@ python3 -m py_compile bot.py web.py
 Nếu có Node.js, có thể kiểm tra JavaScript dashboard:
 
 ```bash
-node -e "const fs=require('fs');const s=fs.readFileSync('templates/index.html','utf8');const m=s.match(/<script>([\s\S]*)<\/script>/);new Function(m[1]);console.log('js syntax ok')"
+node -e "const fs=require('fs');const s=fs.readFileSync('static/dashboard.js','utf8');new Function(s);console.log('js syntax ok')"
 ```
