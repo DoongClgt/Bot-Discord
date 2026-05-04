@@ -85,7 +85,6 @@ STEAMDB_PATCH_MENTION_USER_IDS=''
 STEAMDB_APP_IDS=''
 STEAMDB_PATCH_INTERVAL_HOURS='1'
 STEAMDB_PATCH_SCHEDULE_HOURS='0,6,12,18'
-STEAMDB_PATCH_MAJOR_ONLY='false'
 STEAMDB_PATCH_LIMIT='25'
 STEAM_WATCHER_MAX_AGE_DAYS='7'
 
@@ -120,7 +119,7 @@ Notes:
 - Admin commands require `Manage Messages`.
 - `/dlt` slash replies ephemerally (visible only to the caller).
 - `/check` and `/game remove` slash support autocomplete from the configured game list.
-- Steam Watcher uses Steam Partner event type mapping: `event_type=12` is `MAJOR UPDATE`, `event_type=13` is `REGULAR UPDATE`. `STEAMDB_PATCH_MAJOR_ONLY=true` filters to `event_type=12` only.
+- Steam Watcher uses Steam Partner event type mapping: `event_type=12` is `SMALL UPDATE / PATCH NOTES`, `event_type=13` is `REGULAR UPDATE`, `event_type=14` is `MAJOR UPDATE`. All three are fetched.
 
 ## Cloudflare Tunnel
 

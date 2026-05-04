@@ -193,7 +193,6 @@ STEAMDB_PATCH_CHANNEL_ID=''
 STEAMDB_APP_IDS=''
 STEAMDB_PATCH_INTERVAL_HOURS='1'
 STEAMDB_PATCH_SCHEDULE_HOURS='0,6,12,18'
-STEAMDB_PATCH_MAJOR_ONLY='false'
 STEAMDB_PATCH_LIMIT='25'
 STEAM_WATCHER_MAX_AGE_DAYS='7'
 ```
@@ -209,7 +208,7 @@ Ghi chú:
 - `STEAMDB_APP_IDS` hỗ trợ dạng `730,570` hoặc `730_Counter-Strike 2, 570_Dota 2`.
 - `/game add <SteamAppID>` lấy tên game từ Steam Store, ghi vào `.env`, rồi reload cấu hình.
 - Nếu bot chạy trên VPS, `/game add` cập nhật `.env` trên VPS, không cập nhật `.env` local.
-- Bot dùng Steam Events để lấy REGULAR UPDATE/MAJOR UPDATE. Mapping `event_type` của Steam Partner: `12` = MAJOR UPDATE, `13` = REGULAR UPDATE. `STEAMDB_PATCH_MAJOR_ONLY=true` sẽ chỉ lọc `event_type=12`.
+- Bot dùng Steam Events để lấy update. Mapping `event_type` của Steam Partner: `12` = SMALL UPDATE / PATCH NOTES, `13` = REGULAR UPDATE, `14` = MAJOR UPDATE. Bot lấy cả 3 loại.
 
 ## Kiểm Tra
 

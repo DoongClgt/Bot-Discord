@@ -105,7 +105,6 @@ STEAMDB_PATCH_SCHEDULE_HOURS = sorted({
     int(hour.strip()) for hour in STEAMDB_PATCH_SCHEDULE_HOURS_RAW.split(',')
     if hour.strip().isdigit() and 0 <= int(hour.strip()) <= 23
 }) or [0, 6, 12, 18]
-STEAMDB_PATCH_MAJOR_ONLY = os.getenv('STEAMDB_PATCH_MAJOR_ONLY', 'false').strip().lower() in ('1', 'true', 'yes', 'on')
 STEAMDB_PATCH_LIMIT_STR = os.getenv('STEAMDB_PATCH_LIMIT', '25')
 STEAMDB_PATCH_LIMIT = int(STEAMDB_PATCH_LIMIT_STR) if STEAMDB_PATCH_LIMIT_STR.isdigit() else 25
 STEAMDB_PATCH_LIMIT = min(max(STEAMDB_PATCH_LIMIT, 5), 100)
@@ -117,8 +116,9 @@ RECENT_CHECK_TIMEOUT = 20
 STEAM_WATCHER_SEND_LIMIT = 1
 STEAM_RECENT_PATCH_CHECK_COUNT = 20
 STEAM_EVENT_TYPE_LABELS = {
-    12: "MAJOR UPDATE",
+    12: "SMALL UPDATE / PATCH NOTES",
     13: "REGULAR UPDATE",
+    14: "MAJOR UPDATE",
 }
 
 def safe_http_url(url, fallback=None):
@@ -162,7 +162,7 @@ def first_localized_text(values):
     return ""
 
 def steam_event_type_filter():
-    return "12" if STEAMDB_PATCH_MAJOR_ONLY else "12,13"
+    return "12,13,14"
 
 def steam_event_url(app_id, event_gid):
     return f"https://store.steampowered.com/news/app/{app_id}/view/{event_gid}"
@@ -703,8 +703,7 @@ class SteamDBPatchParser(HTMLParser):
         })
 
 def fetch_steamdb_patches():
-    query = '?major' if STEAMDB_PATCH_MAJOR_ONLY else ''
-    url = f"https://steamdb.info/patchnotes/{query}"
+    url = "https://steamdb.info/patchnotes/"
     req = urllib.request.Request(
         url,
         headers={
