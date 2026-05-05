@@ -1095,7 +1095,12 @@ async def run_steamdb_patch_check(manual=False):
 def seconds_until_next_steamdb_check(now=None):
     now = now or datetime.datetime.now()
     if STEAMDB_PATCH_INTERVAL_HOURS:
-        return STEAMDB_PATCH_INTERVAL_HOURS * 3600
+        midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        interval_seconds = STEAMDB_PATCH_INTERVAL_HOURS * 3600
+        seconds_since_midnight = (now - midnight).total_seconds()
+        next_offset = (int(seconds_since_midnight) // interval_seconds + 1) * interval_seconds
+        target = midnight + datetime.timedelta(seconds=next_offset)
+        return max(1, (target - now).total_seconds())
 
     for hour in STEAMDB_PATCH_SCHEDULE_HOURS:
         target = now.replace(hour=hour, minute=0, second=0, microsecond=0)

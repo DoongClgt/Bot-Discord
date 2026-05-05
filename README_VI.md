@@ -196,7 +196,7 @@ STEAM_WATCHER_MAX_AGE_DAYS='7'
 Ghi chú:
 
 - Watcher chỉ chạy khi có `STEAMDB_PATCH_CHANNEL_ID`.
-- `STEAMDB_PATCH_INTERVAL_HOURS > 0`: chạy theo interval (giờ), clamp 1–168.
+- `STEAMDB_PATCH_INTERVAL_HOURS > 0`: chạy theo interval (giờ), clamp 1–168. Lịch tính từ **0h mỗi ngày**, không phải từ lúc bot online (vd interval=1 → 00:00, 01:00, 02:00,...; interval=3 → 00:00, 03:00, 06:00,...).
 - `STEAMDB_PATCH_INTERVAL_HOURS = 0`: chạy theo các giờ trong `STEAMDB_PATCH_SCHEDULE_HOURS` (mặc định `0,6,12,18`).
 - `STEAM_WATCHER_MAX_AGE_DAYS` lọc bỏ event cũ hơn N ngày (mặc định 7).
 - Mỗi lần check chỉ đẩy tối đa 1 patch để tránh spam; phần còn lại được ghi nhớ.
