@@ -6,7 +6,7 @@ Bot Discord dùng để quản lý spam trap, xoá tin nhắn theo điều kiệ
 
 - Dashboard web chạy bằng Flask, theme Discord, có sidebar 6 trang: Tổng quan (status + sparkline CPU/RAM + tác vụ nhanh), Cấu hình, Steam Watcher, Log gần đây, Ban log (lịch sử ban + tải file), Version. Save Config tự restart bot, log timestamp UTC+7.
 - Slash command và text command cho Discord.
-- Spam trap: gắn role nghi phạm, xoá tin nhắn, ban khi nghi phạm tiếp tục nhắn vào kênh bẫy; có bộ đếm "mít tơ bít đã ban" tự cập nhật trong `SUSPECT_CHANNEL_ID`.
+- Spam trap: ai chat vào kênh bẫy là bị ban luôn (role miễn trừ chỉ bị xoá tin nhắn), có bộ đếm "mít tơ bít đã ban" tự cập nhật trong cả 2 kênh bẫy.
 - Ghi log mọi lượt ban (kể cả admin ban tay) vào thread `BAN_LOG_THREAD_ID` kèm thông tin audit log.
 - Auto-delete: xoá embed/tin nhắn theo user ID và từ khoá cấu hình; có thể giới hạn theo category/loại trừ kênh.
 - Steam watcher: theo dõi patch/update game bằng Steam Events.
@@ -41,11 +41,9 @@ TARGET_CATEGORY_IDS=''
 EXCLUDED_CHANNEL_IDS=''
 
 # Spam trap
-SUSPECT_CHANNEL_ID=''
 SPAM_TRAP_CHANNEL_ID=''
 SPAM_TRAP_CHANNEL_ID_2=''
 SPAM_TRAP_EXCLUDED_ROLE_IDS=''
-SUSPECT_ROLE_ID=''
 
 # Log channels
 BAN_LOG_THREAD_ID=''
@@ -151,19 +149,17 @@ Biến `.env` quan trọng:
 ```env
 SPAM_TRAP_CHANNEL_ID=''
 SPAM_TRAP_CHANNEL_ID_2=''
-SUSPECT_CHANNEL_ID=''
-SUSPECT_ROLE_ID=''
+SPAM_TRAP_EXCLUDED_ROLE_IDS=''
 BAN_LOG_THREAD_ID=''
 ```
 
 Cách hoạt động:
 
-- Người nhắn vào kênh bẫy sẽ bị gắn role nghi phạm và tin nhắn bị xoá.
-- Người nhắn vào `SUSPECT_CHANNEL_ID` cũng bị gắn role nghi phạm và tin nhắn bị xoá.
-- Người đã có role nghi phạm mà nhắn vào kênh bẫy sẽ bị ban.
-- Người có role trong `SPAM_TRAP_EXCLUDED_ROLE_IDS` được miễn trừ: tin nhắn ở kênh bẫy/nghi phạm vẫn bị xoá, nhưng **không** bị gắn role nghi phạm và **không** bị ban.
+- Ai nhắn vào kênh bẫy là **bị ban luôn** (kèm xoá tin nhắn). Không còn role/kênh nghi phạm.
+- Người có role trong `SPAM_TRAP_EXCLUDED_ROLE_IDS` được miễn trừ: tin nhắn ở kênh bẫy vẫn bị xoá nhưng **không** bị ban.
 - Log ban gửi vào thread `BAN_LOG_THREAD_ID`. Nếu không gửi được, fallback sang `GENERAL_LOG_CHANNEL_ID`.
-- Bot duy trì 1 message bộ đếm "Số mít tơ bít đã ban: N" trong `SUSPECT_CHANNEL_ID`, tự edit khi có ban mới.
+- Mỗi kênh bẫy có 1 message bộ đếm "Số mít tơ bít đã ban: N" tự edit khi có ban mới.
+- Có chống trùng (idempotency) theo `(guild_id, user_id)` để tránh ghi 2 dòng log nếu gateway gửi MESSAGE_CREATE 2 lần cho cùng 1 tin.
 
 ## Ban Log Tự Động
 

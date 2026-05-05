@@ -40,16 +40,12 @@ TARGET_CATEGORY_IDS = [int(cat_id.strip()) for cat_id in category_ids_str.split(
 excluded_channel_ids_str = os.getenv('EXCLUDED_CHANNEL_IDS', '')
 EXCLUDED_CHANNEL_IDS = [int(ch_id.strip()) for ch_id in excluded_channel_ids_str.split(',')] if excluded_channel_ids_str else []
 
-SUSPECT_CHANNEL_ID_STR = os.getenv('SUSPECT_CHANNEL_ID', '')
-SUSPECT_CHANNEL_ID = int(SUSPECT_CHANNEL_ID_STR) if SUSPECT_CHANNEL_ID_STR.isdigit() else 0
 SPAM_TRAP_CHANNEL_ID_STR = os.getenv('SPAM_TRAP_CHANNEL_ID', '')
 SPAM_TRAP_CHANNEL_ID = int(SPAM_TRAP_CHANNEL_ID_STR) if SPAM_TRAP_CHANNEL_ID_STR.isdigit() else 0
 SPAM_TRAP_CHANNEL_ID_2_STR = os.getenv('SPAM_TRAP_CHANNEL_ID_2', '')
 SPAM_TRAP_CHANNEL_ID_2 = int(SPAM_TRAP_CHANNEL_ID_2_STR) if SPAM_TRAP_CHANNEL_ID_2_STR.isdigit() else 0
 SPAM_TRAP_CHANNEL_IDS = {channel_id for channel_id in (SPAM_TRAP_CHANNEL_ID, SPAM_TRAP_CHANNEL_ID_2) if channel_id}
 SPAM_TRAP_EXCLUDED_ROLE_IDS = parse_int_set(os.getenv('SPAM_TRAP_EXCLUDED_ROLE_IDS', ''))
-SUSPECT_ROLE_ID_STR = os.getenv('SUSPECT_ROLE_ID', '')
-SUSPECT_ROLE_ID = int(SUSPECT_ROLE_ID_STR) if SUSPECT_ROLE_ID_STR.isdigit() else 0
 
 BAN_LOG_THREAD_ID_STR = os.getenv('BAN_LOG_THREAD_ID', '')
 BAN_LOG_THREAD_ID = int(BAN_LOG_THREAD_ID_STR) if BAN_LOG_THREAD_ID_STR.isdigit() else 0
@@ -372,91 +368,89 @@ async def send_configured_ban_log(guild, log_content):
             pass
     await send_general_log(guild, log_content)
 
-async def get_or_create_suspect_role(guild: discord.Guild):
-    if not SUSPECT_ROLE_ID:
-        return None, "Chua cau hinh SUSPECT_ROLE_ID trong .env."
-    role = guild.get_role(SUSPECT_ROLE_ID)
-    if role:
-        return role, None
-    return None, f"Khong tim thay role nghi pham co ID {SUSPECT_ROLE_ID} trong guild."
-
 async def sync_spam_trap_ban_counter(guild: discord.Guild, increment: bool = False):
     state = load_spam_trap_state()
     current_count = int(state.get("ban_count", 0) or 0)
-    state["ban_count"] = current_count + 1 if increment else current_count
+    if increment:
+        state["ban_count"] = current_count + 1
     message_text = f"Số mít tơ bít đã ban: {state['ban_count']}"
-    channel = guild.get_channel(SUSPECT_CHANNEL_ID) or bot.get_channel(SUSPECT_CHANNEL_ID)
-    if not channel:
-        try:
-            channel = await guild.fetch_channel(SUSPECT_CHANNEL_ID)
-        except Exception:
-            channel = None
-    if not channel:
-        save_spam_trap_state(state)
-        return
+    counter_messages = state.setdefault("counter_messages", {})
 
-    message_id = int(state.get("counter_message_id") or 0)
-    if message_id:
-        try:
-            counter_message = await channel.fetch_message(message_id)
-            await counter_message.edit(content=message_text)
-            save_spam_trap_state(state)
-            return
-        except Exception:
-            state["counter_message_id"] = 0
+    for channel_id in SPAM_TRAP_CHANNEL_IDS:
+        channel = guild.get_channel(channel_id) or bot.get_channel(channel_id)
+        if not channel:
+            try:
+                channel = await guild.fetch_channel(channel_id)
+            except Exception:
+                channel = None
+        if not channel:
+            continue
 
-    try:
-        counter_message = await channel.send(message_text)
-        state["counter_message_id"] = counter_message.id
-    except discord.Forbidden:
-        pass
+        key = str(channel_id)
+        message_id = int(counter_messages.get(key) or 0)
+        if message_id:
+            try:
+                counter_message = await channel.fetch_message(message_id)
+                await counter_message.edit(content=message_text)
+                continue
+            except Exception:
+                counter_messages[key] = 0
+
+        try:
+            counter_message = await channel.send(message_text)
+            counter_messages[key] = counter_message.id
+        except discord.Forbidden:
+            pass
+
     save_spam_trap_state(state)
 
 async def update_spam_trap_ban_counter(guild: discord.Guild):
     await sync_spam_trap_ban_counter(guild, increment=True)
 
-async def ensure_suspect_role(member: discord.Member, reason: str, log_source: str):
-    role, error = await get_or_create_suspect_role(member.guild)
-    had_role = bool(role and role in member.roles)
-    if role and not had_role:
-        try:
-            await member.add_roles(role, reason=reason)
-            log_event("spam_trap", f"Gan role nghi pham cho {member.id} tu {log_source}.")
-        except discord.Forbidden:
-            error = "Bot khong co quyen gan role nghi pham."
-        except discord.HTTPException as e:
-            error = f"Khong gan duoc role nghi pham: {e}"
-    return role, had_role, error
+# In-memory chống xử lý ban trùng cho cùng (guild, user) khi gateway gửi MESSAGE_CREATE 2 lần
+_spam_trap_banning: set = set()
 
 async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audit_reason: str):
+    guild = message.guild
+    if guild is None:
+        return
+
+    ban_key = (guild.id, message.author.id)
+    if ban_key in _spam_trap_banning:
+        try:
+            await message.delete()
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+        return
+    _spam_trap_banning.add(ban_key)
+
     try:
         await message.delete()
     except (discord.Forbidden, discord.HTTPException):
         pass
 
     author = message.author
-    guild = message.guild
     channel = message.channel
     roles_snapshot = []
     if isinstance(author, discord.Member):
         roles_snapshot = [
             {"id": str(r.id), "name": r.name}
             for r in author.roles
-            if guild is None or r.id != guild.id
+            if r.id != guild.id
         ]
     parent_channel = channel.parent if isinstance(channel, discord.Thread) else None
 
     try:
-        await message.guild.ban(
-            message.author,
+        await guild.ban(
+            author,
             reason=audit_reason,
             delete_message_seconds=60,
         )
-        await update_spam_trap_ban_counter(message.guild)
-        log_event("spam_trap_ban", f"Da ban {message.author.id}: {reason_text}")
+        await update_spam_trap_ban_counter(guild)
+        log_event("spam_trap_ban", f"Da ban {author.id}: {reason_text}")
         append_ban_log({
-            "guild_id": str(guild.id) if guild else "",
-            "guild_name": guild.name if guild else "",
+            "guild_id": str(guild.id),
+            "guild_name": guild.name,
             "user_id": str(author.id),
             "username": str(author),
             "display_name": getattr(author, "display_name", None) or str(author),
@@ -475,9 +469,11 @@ async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audi
             "audit_reason": audit_reason,
         })
     except discord.Forbidden:
-        await send_configured_ban_log(message.guild, f"Khong ban duoc {message.author.mention}: bot thieu quyen Ban Members hoac role thap.")
+        _spam_trap_banning.discard(ban_key)
+        await send_configured_ban_log(guild, f"Khong ban duoc {author.mention}: bot thieu quyen Ban Members hoac role thap.")
     except discord.HTTPException as e:
-        await send_configured_ban_log(message.guild, f"Khong ban duoc {message.author.mention}: {e}")
+        _spam_trap_banning.discard(ban_key)
+        await send_configured_ban_log(guild, f"Khong ban duoc {author.mention}: {e}")
 
 def has_spam_trap_excluded_role(member: discord.Member):
     if not SPAM_TRAP_EXCLUDED_ROLE_IDS:
@@ -488,65 +484,23 @@ async def handle_spam_trap_message(message: discord.Message, actual_channel_id: 
     if not isinstance(message.author, discord.Member) or not message.guild:
         return False
 
-    is_spam_trap_channel = actual_channel_id in SPAM_TRAP_CHANNEL_IDS
-    is_suspect_channel = bool(SUSPECT_CHANNEL_ID and actual_channel_id == SUSPECT_CHANNEL_ID)
-    if (is_spam_trap_channel or is_suspect_channel) and has_spam_trap_excluded_role(message.author):
+    if actual_channel_id not in SPAM_TRAP_CHANNEL_IDS:
+        return False
+
+    if has_spam_trap_excluded_role(message.author):
         try:
             await message.delete()
         except (discord.Forbidden, discord.HTTPException):
             pass
-        log_event("spam_trap", f"Xoa tin nhan tu {message.author.id}: co role mien tru, khong ban/gan role.")
+        log_event("spam_trap", f"Xoa tin nhan tu {message.author.id}: co role mien tru, khong ban.")
         return True
 
-    if is_spam_trap_channel:
-        role, had_role, error = await ensure_suspect_role(
-            message.author,
-            "User sent a message in spam trap channel",
-            "kenh bay",
-        )
-
-        if role and had_role:
-            await ban_spam_trap_suspect(
-                message,
-                "Nghi pham da chat trong kenh bay.",
-                "Spam trap: nghi pham chat trong kenh bay",
-            )
-            return True
-
-        try:
-            await message.delete()
-        except (discord.Forbidden, discord.HTTPException):
-            pass
-
-        if error:
-            await send_general_log(message.guild, f"Spam trap loi voi {message.author.mention}: {error}")
-        return True
-
-    if is_suspect_channel:
-        role, had_role, error = await ensure_suspect_role(
-            message.author,
-            "User sent a message in suspect channel",
-            "kenh nghi pham",
-        )
-
-        if role and had_role:
-            await ban_spam_trap_suspect(
-                message,
-                "Nghi pham da chat trong kenh nghi pham.",
-                "Spam trap: nghi pham chat trong kenh nghi pham",
-            )
-            return True
-
-        try:
-            await message.delete()
-        except (discord.Forbidden, discord.HTTPException):
-            pass
-
-        if error:
-            await send_general_log(message.guild, f"Spam trap loi voi {message.author.mention}: {error}")
-        return True
-
-    return False
+    await ban_spam_trap_suspect(
+        message,
+        "Da chat vao kenh bay.",
+        "Spam trap: chat vao kenh bay",
+    )
+    return True
 
 # ===== Persistent data and IPC helpers =====
 import json as _json
@@ -623,10 +577,12 @@ def load_spam_trap_state():
                 data = _json.load(f)
             if isinstance(data, dict):
                 data.setdefault("ban_count", 0)
+                data.setdefault("counter_messages", {})
+                data.pop("counter_message_id", None)
                 return data
         except Exception:
             pass
-    return {"ban_count": 0, "counter_message_id": 0}
+    return {"ban_count": 0, "counter_messages": {}}
 
 def save_spam_trap_state(state):
     atomic_write_json(SPAM_TRAP_STATE_FILE, state)
@@ -1521,7 +1477,7 @@ async def on_ready():
     except Exception as e:
         print(f"Lỗi xuất channels.json: {e}")
     
-    if SUSPECT_CHANNEL_ID:
+    if SPAM_TRAP_CHANNEL_IDS:
         for guild in bot.guilds:
             try:
                 await sync_spam_trap_ban_counter(guild, increment=False)
