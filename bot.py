@@ -5,6 +5,7 @@ import asyncio
 import datetime
 import os
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -684,22 +685,43 @@ def fetch_steam_event_patches():
     patches = []
     cutoff_ts = steam_watcher_cutoff_ts()
     count_per_app = max(1, min(STEAMDB_PATCH_LIMIT, 100))
-    for app_id in sorted(STEAMDB_APP_IDS):
+    app_ids = sorted(STEAMDB_APP_IDS)
+    failed_apps = 0
+    last_error = None
+    for app_id in app_ids:
         url = (
             "https://store.steampowered.com/events/ajaxgetadjacentpartnerevents/"
             f"?appid={app_id}&count_before=0&count_after={count_per_app}"
             f"&event_type_filter={steam_event_type_filter()}"
         )
-        req = urllib.request.Request(
-            url,
-            headers={
-                "User-Agent": "Mozilla/5.0 DiscordPatchWatcher/1.0",
-                "Accept": "application/json",
-            },
-        )
-        with urllib.request.urlopen(req, timeout=STEAM_HTTP_TIMEOUT) as resp:
-            data = _json.loads(resp.read().decode('utf-8', errors='replace'))
+        data = None
+        for attempt in range(2):
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 DiscordPatchWatcher/1.0",
+                    "Accept": "application/json",
+                },
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=STEAM_HTTP_TIMEOUT) as resp:
+                    data = _json.loads(resp.read().decode('utf-8', errors='replace'))
+                break
+            except (urllib.error.URLError, TimeoutError) as e:
+                last_error = e
+                if attempt == 0:
+                    time.sleep(2)
+                    continue
+                failed_apps += 1
+                log_event(
+                    "steamdb_check",
+                    f"Bo qua app {app_id} sau 2 lan thu: {e}",
+                    "warn",
+                )
+                data = None
 
+        if data is None:
+            continue
         if data.get("success") != 1:
             continue
         for event in data.get("events", []):
@@ -713,6 +735,9 @@ def fetch_steam_event_patches():
             patch = steam_event_to_patch(app_id, event)
             if patch:
                 patches.append(patch)
+
+    if failed_apps and failed_apps == len(app_ids) and last_error is not None:
+        raise last_error
 
     patches.sort(key=lambda patch: patch.get("_sort_ts", 0), reverse=True)
     return patches[:STEAMDB_PATCH_LIMIT]
