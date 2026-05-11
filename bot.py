@@ -520,6 +520,7 @@ IPC_RESPONSE_FILE = os.path.join(DATA_DIR, 'ipc_response.txt')
 BOT_EVENTS_FILE = os.path.join(DATA_DIR, 'bot_events.log')
 BAN_LOG_FILE = os.path.join(DATA_DIR, 'ban_log.jsonl')
 SPAM_TRAP_STATE_FILE = os.path.join(DATA_DIR, 'spam_trap_state.json')
+SYNCROLE_PROGRESS_FILE = os.path.join(DATA_DIR, 'syncrole_progress.json')
 
 def atomic_write_text(path, text):
     tmp_path = f"{path}.tmp"
@@ -1340,6 +1341,12 @@ async def slash_refreshchannels(interaction: discord.Interaction):
     total = await export_channels_map()
     await interaction.followup.send(f"Da quet lai {total} muc kenh/role/user/thread cho dashboard.")
 
+def write_syncrole_progress(state: dict):
+    try:
+        atomic_write_json(SYNCROLE_PROGRESS_FILE, state)
+    except Exception:
+        pass
+
 async def sync_new_member_role(guild: discord.Guild):
     if not NEW_MEMBER_ROLE_ID:
         return "Chua cau hinh NEW_MEMBER_ROLE_ID trong .env."
@@ -1352,34 +1359,76 @@ async def sync_new_member_role(guild: discord.Guild):
     if me.top_role <= role:
         return f"Role bot ({me.top_role.name}) khong cao hon role can cap ({role.name})."
 
+    members = list(guild.members)
+    total = len(members)
+    started_at = now_utc7_string()
+    state = {
+        "running": True,
+        "guild_id": str(guild.id),
+        "guild_name": guild.name,
+        "role_id": str(NEW_MEMBER_ROLE_ID),
+        "role_name": role.name,
+        "total": total,
+        "scanned": 0,
+        "granted": 0,
+        "skipped": 0,
+        "failed": 0,
+        "started_at": started_at,
+        "finished_at": "",
+        "message": "",
+    }
+    write_syncrole_progress(state)
+
     granted = 0
     skipped = 0
     failed = 0
     scanned = 0
-    for member in guild.members:
-        scanned += 1
-        if member.bot:
-            skipped += 1
-            continue
-        if any(r.id == NEW_MEMBER_ROLE_ID for r in member.roles):
-            skipped += 1
-            continue
-        try:
-            await member.add_roles(role, reason="Sync auto role cho thanh vien cu")
-            granted += 1
-            await asyncio.sleep(0.5)
-        except discord.Forbidden:
-            failed += 1
-        except discord.HTTPException:
-            failed += 1
-    log_event(
-        "auto_role_sync",
-        f"Da quet {scanned} member, cap role {role.name} cho {granted} nguoi, skip {skipped}, loi {failed}.",
-    )
-    return (
-        f"Da quet {scanned} member: cap role **{role.name}** cho {granted}, "
-        f"bo qua {skipped} (da co role hoac bot), loi {failed}."
-    )
+    last_flush = 0.0
+    try:
+        for member in members:
+            scanned += 1
+            if member.bot or any(r.id == NEW_MEMBER_ROLE_ID for r in member.roles):
+                skipped += 1
+            else:
+                try:
+                    await member.add_roles(role, reason="Sync auto role cho thanh vien cu")
+                    granted += 1
+                    await asyncio.sleep(0.5)
+                except discord.Forbidden:
+                    failed += 1
+                except discord.HTTPException:
+                    failed += 1
+
+            now = time.monotonic()
+            if now - last_flush >= 1.0 or scanned == total:
+                state.update({
+                    "scanned": scanned,
+                    "granted": granted,
+                    "skipped": skipped,
+                    "failed": failed,
+                })
+                write_syncrole_progress(state)
+                last_flush = now
+    finally:
+        message = (
+            f"Da quet {scanned}/{total} member: cap role **{role.name}** cho {granted}, "
+            f"bo qua {skipped} (da co role hoac bot), loi {failed}."
+        )
+        state.update({
+            "running": False,
+            "scanned": scanned,
+            "granted": granted,
+            "skipped": skipped,
+            "failed": failed,
+            "finished_at": now_utc7_string(),
+            "message": message,
+        })
+        write_syncrole_progress(state)
+        log_event(
+            "auto_role_sync",
+            f"Da quet {scanned}/{total} member, cap role {role.name} cho {granted} nguoi, skip {skipped}, loi {failed}.",
+        )
+    return message
 
 @bot.tree.command(name='syncrole', description='Quet member va cap NEW_MEMBER_ROLE_ID cho ai chua co')
 @app_commands.default_permissions(manage_roles=True)

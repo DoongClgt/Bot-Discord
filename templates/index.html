@@ -135,6 +135,30 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="card" id="syncRoleCard" style="margin-top: 18px; display: none;">
+                        <div class="card-header">
+                            <h2 class="card-title">Tiến độ /syncrole</h2>
+                            <span class="card-note" id="syncRoleStatusNote">—</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="syncrole-meta">
+                                <div><span class="syncrole-label">Role:</span> <span id="syncRoleName">-</span></div>
+                                <div><span class="syncrole-label">Bắt đầu:</span> <span id="syncRoleStarted">-</span></div>
+                                <div><span class="syncrole-label">Kết thúc:</span> <span id="syncRoleFinished">-</span></div>
+                            </div>
+                            <div class="syncrole-bar">
+                                <div class="syncrole-bar-fill" id="syncRoleBarFill"></div>
+                                <div class="syncrole-bar-text" id="syncRoleBarText">0 / 0 (0%)</div>
+                            </div>
+                            <div class="syncrole-counts">
+                                <span class="syncrole-chip granted">Cấp: <b id="syncRoleGranted">0</b></span>
+                                <span class="syncrole-chip skipped">Skip: <b id="syncRoleSkipped">0</b></span>
+                                <span class="syncrole-chip failed">Lỗi: <b id="syncRoleFailed">0</b></span>
+                            </div>
+                            <div class="syncrole-message" id="syncRoleMessage"></div>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- ── Page: settings ─────────────────────────────── -->

@@ -127,6 +127,7 @@ Set `NEW_MEMBER_ROLE_ID` so the bot assigns that role to every member who joins.
 - Logged to `bot_events.log` under event `auto_role` (success, missing role, Forbidden, HTTP error).
 - Dashboard: enter the Role ID directly on the Settings page under "Role tự cấp cho thành viên mới" and click Save — the bot restarts automatically. The resolved role name is shown right under the input.
 - `/syncrole` (slash + text alias `/syncroles`): scans all current members and grants the role to anyone missing it. Requires `Manage Roles`. Replies ephemerally. Sleeps 0.5s between grants to avoid rate limits. Logs to event `auto_role_sync`.
+- Dashboard shows a **"Tiến độ /syncrole"** card on the Overview tab: progress bar + Granted/Skipped/Failed chips + start/finish timestamps. The bot writes `data/syncrole_progress.json` every ~1s, the dashboard polls every 2s, and the card stays hidden until `/syncrole` has been run at least once. A toast fires when the run finishes.
 
 Notes:
 
