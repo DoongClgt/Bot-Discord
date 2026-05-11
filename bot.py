@@ -57,6 +57,9 @@ DELETE_LOG_THREAD_ID = int(DELETE_LOG_THREAD_ID_STR) if DELETE_LOG_THREAD_ID_STR
 STARTUP_CHANNEL_ID_STR = os.getenv('STARTUP_CHANNEL_ID', '')
 STARTUP_CHANNEL_ID = int(STARTUP_CHANNEL_ID_STR) if STARTUP_CHANNEL_ID_STR.isdigit() else 0
 
+NEW_MEMBER_ROLE_ID_STR = os.getenv('NEW_MEMBER_ROLE_ID', '')
+NEW_MEMBER_ROLE_ID = int(NEW_MEMBER_ROLE_ID_STR) if NEW_MEMBER_ROLE_ID_STR.isdigit() else 0
+
 GENERAL_LOG_CHANNEL_ID_STR = os.getenv('GENERAL_LOG_CHANNEL_ID', '')
 GENERAL_LOG_CHANNEL_ID = int(GENERAL_LOG_CHANNEL_ID_STR) if GENERAL_LOG_CHANNEL_ID_STR.isdigit() else 0
 
@@ -207,6 +210,7 @@ def steam_event_to_patch(app_id, event):
 # Khởi tạo intents để bot có quyền đọc được tin nhắn trên server
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 
 
 # Khai báo bot
@@ -1336,6 +1340,58 @@ async def slash_refreshchannels(interaction: discord.Interaction):
     total = await export_channels_map()
     await interaction.followup.send(f"Da quet lai {total} muc kenh/role/user/thread cho dashboard.")
 
+async def sync_new_member_role(guild: discord.Guild):
+    if not NEW_MEMBER_ROLE_ID:
+        return "Chua cau hinh NEW_MEMBER_ROLE_ID trong .env."
+    role = guild.get_role(NEW_MEMBER_ROLE_ID)
+    if role is None:
+        return f"Khong tim thay role ID {NEW_MEMBER_ROLE_ID} trong server."
+    me = guild.me
+    if me is None or not me.guild_permissions.manage_roles:
+        return "Bot khong co quyen Manage Roles trong server nay."
+    if me.top_role <= role:
+        return f"Role bot ({me.top_role.name}) khong cao hon role can cap ({role.name})."
+
+    granted = 0
+    skipped = 0
+    failed = 0
+    scanned = 0
+    for member in guild.members:
+        scanned += 1
+        if member.bot:
+            skipped += 1
+            continue
+        if any(r.id == NEW_MEMBER_ROLE_ID for r in member.roles):
+            skipped += 1
+            continue
+        try:
+            await member.add_roles(role, reason="Sync auto role cho thanh vien cu")
+            granted += 1
+            await asyncio.sleep(0.5)
+        except discord.Forbidden:
+            failed += 1
+        except discord.HTTPException:
+            failed += 1
+    log_event(
+        "auto_role_sync",
+        f"Da quet {scanned} member, cap role {role.name} cho {granted} nguoi, skip {skipped}, loi {failed}.",
+    )
+    return (
+        f"Da quet {scanned} member: cap role **{role.name}** cho {granted}, "
+        f"bo qua {skipped} (da co role hoac bot), loi {failed}."
+    )
+
+@bot.tree.command(name='syncrole', description='Quet member va cap NEW_MEMBER_ROLE_ID cho ai chua co')
+@app_commands.default_permissions(manage_roles=True)
+@app_commands.checks.has_permissions(manage_roles=True)
+async def slash_syncrole(interaction: discord.Interaction):
+    if interaction.guild is None:
+        await interaction.response.send_message("Lenh nay chi dung trong server.", ephemeral=True)
+        return
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    result = await sync_new_member_role(interaction.guild)
+    await interaction.followup.send(result, ephemeral=True)
+
 @bot.tree.command(name='dlt', description='Quet TARGET_CATEGORY_IDS va xoa tin cua TARGET_USER_ID neu khop keyword')
 @app_commands.default_permissions(manage_messages=True)
 @app_commands.checks.has_permissions(manage_messages=True)
@@ -1461,6 +1517,15 @@ async def refresh_channels_command(ctx):
     total = await export_channels_map()
     await ctx.send(f"Da quet lai {total} muc kenh/role/user/thread cho dashboard.")
 
+@bot.command(name='syncrole', aliases=['syncroles'])
+@commands.has_permissions(manage_roles=True)
+async def syncrole_command(ctx):
+    if ctx.guild is None:
+        await ctx.send("Lenh nay chi dung trong server.")
+        return
+    result = await sync_new_member_role(ctx.guild)
+    await ctx.send(result)
+
 @bot.event
 async def on_ready():
     global slash_commands_synced
@@ -1523,6 +1588,27 @@ async def on_ready():
                 print(f"Cảnh báo: Bot không có quyền gửi tin nhắn vào kênh khởi động {STARTUP_CHANNEL_ID}")
         else:
             print(f"Cảnh báo: Không tìm thấy kênh thông báo online với ID {STARTUP_CHANNEL_ID}")
+
+# Sự kiện khi có thành viên mới tham gia server — tự động cấp role mặc định
+@bot.event
+async def on_member_join(member: discord.Member):
+    if not NEW_MEMBER_ROLE_ID:
+        return
+    if member.bot:
+        return
+    if any(role.id == NEW_MEMBER_ROLE_ID for role in member.roles):
+        return
+    role = member.guild.get_role(NEW_MEMBER_ROLE_ID)
+    if role is None:
+        log_event("auto_role", f"Khong tim thay role ID {NEW_MEMBER_ROLE_ID} trong guild {member.guild.id}.", "warn")
+        return
+    try:
+        await member.add_roles(role, reason="Auto role cho thanh vien moi")
+        log_event("auto_role", f"Da cap role {role.name} cho {member.id} ({member.display_name}).")
+    except discord.Forbidden:
+        log_event("auto_role", f"Bot khong co quyen cap role {role.name} cho {member.id}.", "error")
+    except discord.HTTPException as e:
+        log_event("auto_role", f"Loi khi cap role {role.name} cho {member.id}: {e}", "error")
 
 # Sự kiện khi một thành viên bị Ban khỏi server
 @bot.event

@@ -11,6 +11,7 @@ Vietnamese setup guide: [README_VI.md](README_VI.md)
 - Spam trap flow: anyone who chats in a configured trap channel is banned immediately (excluded roles only get their message deleted), with a self-updating ban counter in both trap channels.
 - Ban audit log: every ban (including manual admin bans) is logged into `BAN_LOG_THREAD_ID` with audit info.
 - Auto-delete embeds by configured target user, keywords, category, and channel filters.
+- Auto-assign a default role to new members joining the server (skipped if they already have it).
 - Steam patch/update watcher using Steam Events with interval or scheduled hours.
 - Manage watched Steam games with `/game add`, `/game remove`, `/game list`, and `/game help`.
 
@@ -76,6 +77,9 @@ BAN_LOG_THREAD_ID=''
 STARTUP_CHANNEL_ID=''
 GENERAL_LOG_CHANNEL_ID=''
 
+# Auto role for new members (leave empty to disable)
+NEW_MEMBER_ROLE_ID=''
+
 # Steam watcher
 STEAMDB_PATCH_CHANNEL_ID=''
 STEAMDB_PATCH_MENTION_USER_ID=''
@@ -108,9 +112,21 @@ Slash commands:
 /game add <app_id>
 /game remove <game>
 /game help
+/syncrole
 ```
 
 Text command aliases also available: `/online`, `/status`, `/patchcheck`, `/sdbcheckrecent`, `/patchrecent`, `/rescanchannels`.
+
+## Auto Role For New Members
+
+Set `NEW_MEMBER_ROLE_ID` so the bot assigns that role to every member who joins.
+
+- Bots and members who already have the role are skipped (idempotent).
+- The bot needs `Manage Roles` and its highest role must sit **above** the target role.
+- Leave the variable empty to disable. Requires the `Server Members` privileged intent to be enabled in the Discord Developer Portal.
+- Logged to `bot_events.log` under event `auto_role` (success, missing role, Forbidden, HTTP error).
+- Dashboard: enter the Role ID directly on the Settings page under "Role tự cấp cho thành viên mới" and click Save — the bot restarts automatically. The resolved role name is shown right under the input.
+- `/syncrole` (slash + text alias `/syncroles`): scans all current members and grants the role to anyone missing it. Requires `Manage Roles`. Replies ephemerally. Sleeps 0.5s between grants to avoid rate limits. Logs to event `auto_role_sync`.
 
 Notes:
 
