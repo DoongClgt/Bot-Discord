@@ -684,18 +684,31 @@ a:hover { text-decoration: underline; }
 }
 
 /* ── Sync role progress ─────────────────────────────────────────── */
-.syncrole-meta {
+.syncrole-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 6px 24px;
+    margin-bottom: 14px;
+}
+.syncrole-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 12px;
+    align-items: baseline;
+    gap: 8px;
     font-size: 13px;
     color: var(--text-normal);
+    line-height: 1.6;
 }
 .syncrole-label {
     color: var(--text-faint);
-    margin-right: 4px;
+    flex-shrink: 0;
+    min-width: 92px;
 }
+.syncrole-val {
+    font-weight: 600;
+}
+.syncrole-val.granted { color: var(--d-green); }
+.syncrole-val.skipped { color: var(--text-faint); }
+.syncrole-val.failed { color: var(--d-red); }
 .syncrole-bar {
     position: relative;
     height: 22px;
@@ -722,26 +735,6 @@ a:hover { text-decoration: underline; }
     color: var(--text-normal);
     text-shadow: 0 1px 2px rgba(0,0,0,0.6);
 }
-.syncrole-counts {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-}
-.syncrole-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    color: var(--text-normal);
-    background: var(--bg-input);
-    border: 1px solid var(--border-soft);
-}
-.syncrole-chip.granted { border-color: rgba(35, 165, 90, 0.45); }
-.syncrole-chip.skipped { border-color: rgba(128, 132, 142, 0.45); }
-.syncrole-chip.failed { border-color: rgba(242, 63, 67, 0.45); }
 .syncrole-message {
     font-size: 12px;
     color: var(--text-faint);

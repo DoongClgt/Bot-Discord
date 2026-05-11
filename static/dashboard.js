@@ -27,9 +27,6 @@
         // toast
         toastStack: document.getElementById("toastStack"),
         // modal
-        channelsModal: document.getElementById("channelsModal"),
-        channelsModalBody: document.getElementById("channelsModalBody"),
-        channelsModalSearch: document.getElementById("channelsModalSearch"),
         envModal: document.getElementById("envModal"),
         envModalBody: document.getElementById("envModalBody"),
     };
@@ -262,29 +259,6 @@
             channelMap = {};
             if (els.metricChannels) els.metricChannels.textContent = "-";
         }
-    }
-
-    function openChannelsModal() {
-        if (!els.channelsModal) return;
-        renderChannelsModalList("");
-        els.channelsModal.classList.add("show");
-        if (els.channelsModalSearch) els.channelsModalSearch.value = "";
-    }
-
-    function renderChannelsModalList(filter) {
-        if (!els.channelsModalBody) return;
-        const term = (filter || "").toLowerCase();
-        const entries = Object.entries(channelMap).filter(([id, name]) => {
-            if (!term) return true;
-            return id.toLowerCase().includes(term) || (name || "").toLowerCase().includes(term);
-        });
-        if (!entries.length) {
-            els.channelsModalBody.innerHTML = '<div class="readonly-empty">Không có kênh nào khớp.</div>';
-            return;
-        }
-        els.channelsModalBody.innerHTML = entries
-            .map(([id, name]) => `<div class="kv-row"><span class="k">${escapeHtml(id)}</span><span class="v">${escapeHtml(name)}</span></div>`)
-            .join("");
     }
 
     function closeModal(modal) {
@@ -675,7 +649,6 @@
                 else if (action === "reload-logs") loadLogs();
                 else if (action === "reload-banlog") loadBanLog();
                 else if (action === "download-banlog") downloadBanLog();
-                else if (action === "open-channels") openChannelsModal();
                 else if (action === "open-env") openEnvModal();
                 else if (action === "close-modal") closeModal(btn.closest(".modal-backdrop"));
             });
@@ -692,14 +665,11 @@
             }
         });
 
-        if (els.channelsModalSearch) {
-            els.channelsModalSearch.addEventListener("input", (e) => {
-                renderChannelsModalList(e.target.value);
-            });
-        }
     }
 
     /* ── Sync role progress ───────────────────────────────── */
+
+    const fmtNum = (n) => Number(n || 0).toLocaleString("vi-VN");
 
     let lastSyncRoleFinished = "";
     async function fetchSyncRoleProgress() {
@@ -723,15 +693,18 @@
             const fill = document.getElementById("syncRoleBarFill");
             const text = document.getElementById("syncRoleBarText");
             if (fill) fill.style.width = pct + "%";
-            if (text) text.textContent = `${scanned} / ${total} (${pct}%)`;
+            if (text) text.textContent = `${fmtNum(scanned)} / ${fmtNum(total)} (${pct}%)`;
 
             const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            setText("syncRoleGuild", data.guild_name || "-");
             setText("syncRoleName", data.role_name ? `${data.role_name} (${data.role_id || "?"})` : "-");
+            setText("syncRoleTotal", fmtNum(total));
+            setText("syncRoleScanned", fmtNum(scanned));
+            setText("syncRoleGranted", fmtNum(granted));
+            setText("syncRoleSkipped", fmtNum(skipped));
+            setText("syncRoleFailed", fmtNum(failed));
             setText("syncRoleStarted", data.started_at || "-");
             setText("syncRoleFinished", data.finished_at || (data.running ? "Đang chạy..." : "-"));
-            setText("syncRoleGranted", granted);
-            setText("syncRoleSkipped", skipped);
-            setText("syncRoleFailed", failed);
             setText("syncRoleMessage", data.message || "");
 
             const note = document.getElementById("syncRoleStatusNote");

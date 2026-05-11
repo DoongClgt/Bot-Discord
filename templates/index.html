@@ -121,7 +121,32 @@
                         </div>
                     </div>
 
-                    <div class="card">
+                    <div class="card" id="syncRoleCard" style="display: none;">
+                        <div class="card-header">
+                            <h2 class="card-title">Tiến độ /syncrole</h2>
+                            <span class="card-note" id="syncRoleStatusNote">—</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="syncrole-grid">
+                                <div class="syncrole-row"><span class="syncrole-label">Server:</span><span id="syncRoleGuild">-</span></div>
+                                <div class="syncrole-row"><span class="syncrole-label">Role:</span><span id="syncRoleName">-</span></div>
+                                <div class="syncrole-row"><span class="syncrole-label">Tổng member:</span><span id="syncRoleTotal">0</span></div>
+                                <div class="syncrole-row"><span class="syncrole-label">Đã quét:</span><span id="syncRoleScanned">0</span></div>
+                                <div class="syncrole-row"><span class="syncrole-label">Đã cấp role:</span><span id="syncRoleGranted" class="syncrole-val granted">0</span></div>
+                                <div class="syncrole-row"><span class="syncrole-label">Bỏ qua:</span><span id="syncRoleSkipped" class="syncrole-val skipped">0</span></div>
+                                <div class="syncrole-row"><span class="syncrole-label">Lỗi:</span><span id="syncRoleFailed" class="syncrole-val failed">0</span></div>
+                                <div class="syncrole-row"><span class="syncrole-label">Bắt đầu:</span><span id="syncRoleStarted">-</span></div>
+                                <div class="syncrole-row"><span class="syncrole-label">Kết thúc:</span><span id="syncRoleFinished">-</span></div>
+                            </div>
+                            <div class="syncrole-bar">
+                                <div class="syncrole-bar-fill" id="syncRoleBarFill"></div>
+                                <div class="syncrole-bar-text" id="syncRoleBarText">0 / 0 (0%)</div>
+                            </div>
+                            <div class="syncrole-message" id="syncRoleMessage"></div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 18px;">
                         <div class="card-header">
                             <h2 class="card-title">Tác vụ nhanh</h2>
                             <span class="card-note">Gửi lệnh qua IPC đến bot đang chạy</span>
@@ -130,33 +155,8 @@
                             <div class="btn-row">
                                 <button id="btnRefreshChannels" class="btn" type="button" data-action="refresh-channels">Quét lại kênh</button>
                                 <button id="btnSteamDB" class="btn fuchsia" type="button" data-action="steamdb-check">Check Steam patch</button>
-                                <button class="btn secondary" type="button" data-action="open-channels">Xem channel cache</button>
                                 <button class="btn secondary" type="button" data-action="open-env">Xem .env hiện tại</button>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="card" id="syncRoleCard" style="margin-top: 18px; display: none;">
-                        <div class="card-header">
-                            <h2 class="card-title">Tiến độ /syncrole</h2>
-                            <span class="card-note" id="syncRoleStatusNote">—</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="syncrole-meta">
-                                <div><span class="syncrole-label">Role:</span> <span id="syncRoleName">-</span></div>
-                                <div><span class="syncrole-label">Bắt đầu:</span> <span id="syncRoleStarted">-</span></div>
-                                <div><span class="syncrole-label">Kết thúc:</span> <span id="syncRoleFinished">-</span></div>
-                            </div>
-                            <div class="syncrole-bar">
-                                <div class="syncrole-bar-fill" id="syncRoleBarFill"></div>
-                                <div class="syncrole-bar-text" id="syncRoleBarText">0 / 0 (0%)</div>
-                            </div>
-                            <div class="syncrole-counts">
-                                <span class="syncrole-chip granted">Cấp: <b id="syncRoleGranted">0</b></span>
-                                <span class="syncrole-chip skipped">Skip: <b id="syncRoleSkipped">0</b></span>
-                                <span class="syncrole-chip failed">Lỗi: <b id="syncRoleFailed">0</b></span>
-                            </div>
-                            <div class="syncrole-message" id="syncRoleMessage"></div>
                         </div>
                     </div>
                 </section>
@@ -412,20 +412,6 @@
 
     <!-- Toast container -->
     <div id="toastStack" class="toast-stack"></div>
-
-    <!-- Channels modal -->
-    <div id="channelsModal" class="modal-backdrop" role="dialog" aria-modal="true">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 class="card-title">Channel cache</h2>
-                <button class="btn ghost" type="button" data-action="close-modal">Đóng</button>
-            </div>
-            <div class="modal-body">
-                <input id="channelsModalSearch" class="modal-search" placeholder="Tìm theo ID hoặc tên...">
-                <div id="channelsModalBody"></div>
-            </div>
-        </div>
-    </div>
 
     <!-- ENV modal -->
     <div id="envModal" class="modal-backdrop" role="dialog" aria-modal="true">
