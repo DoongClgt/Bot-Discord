@@ -273,7 +273,7 @@
                                             <label>Role staff (chọn nhiều)</label>
                                             <div class="multi-picker" data-picker-for="TICKET_SUPPORT_ROLE_IDS" data-picker-prefix="🛡️">
                                                 <input type="hidden" id="TICKET_SUPPORT_ROLE_IDS" name="TICKET_SUPPORT_ROLE_IDS" data-allow-empty="true">
-                                                <div class="multi-picker-chips" data-picker-chips></div>
+                                                <div class="multi-picker-chips" data-picker-chips data-empty="Chưa chọn role nào"></div>
                                                 <div class="multi-picker-input-wrap">
                                                     <input type="text" class="multi-picker-input" placeholder="Gõ để tìm role..." data-picker-input autocomplete="off">
                                                     <div class="multi-picker-suggest" data-picker-suggest></div>
@@ -495,16 +495,30 @@
                                     <input type="number" id="giveawayWinners" value="1" min="1" max="50">
                                 </div>
                                 <div class="form-group">
-                                    <label for="giveawayChannel">Kênh đăng *</label>
-                                    <select id="giveawayChannel"><option value="">-- Chọn kênh --</option></select>
+                                    <label>Kênh đăng *</label>
+                                    <div class="multi-picker" data-picker-for="giveawayChannel" data-picker-prefix="# " data-picker-single="true">
+                                        <input type="hidden" id="giveawayChannel">
+                                        <div class="multi-picker-chips" data-picker-chips data-empty="Chưa chọn kênh"></div>
+                                        <div class="multi-picker-input-wrap">
+                                            <input type="text" class="multi-picker-input" placeholder="Gõ để tìm kênh..." data-picker-input autocomplete="off">
+                                            <div class="multi-picker-suggest" data-picker-suggest></div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label for="giveawayRole">Vai trò bắt buộc (tùy chọn)</label>
                                     <select id="giveawayRole"><option value="">(không yêu cầu)</option></select>
                                 </div>
                                 <div class="form-group">
-                                    <label for="giveawayPing">Ping khi đăng (tùy chọn)</label>
-                                    <select id="giveawayPing"><option value="">(không ping)</option></select>
+                                    <label>Ping khi đăng (tùy chọn)</label>
+                                    <div class="multi-picker" data-picker-for="giveawayPing" data-picker-prefix="🛡️" data-picker-single="true" data-picker-extras="everyone:@everyone,here:@here">
+                                        <input type="hidden" id="giveawayPing">
+                                        <div class="multi-picker-chips" data-picker-chips data-empty="Không ping"></div>
+                                        <div class="multi-picker-input-wrap">
+                                            <input type="text" class="multi-picker-input" placeholder="Gõ để tìm role, everyone, here..." data-picker-input autocomplete="off">
+                                            <div class="multi-picker-suggest" data-picker-suggest></div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="form-group full">
                                     <label for="giveawayDescription">Mô tả (hỗ trợ markdown, tùy chọn)</label>

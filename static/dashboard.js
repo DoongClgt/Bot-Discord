@@ -479,59 +479,24 @@
     }
 
     function populateGiveawayDropdowns() {
-        const chSel = document.getElementById("giveawayChannel");
         const roleSel = document.getElementById("giveawayRole");
-        const pingSel = document.getElementById("giveawayPing");
-        if (!chSel || !roleSel) return;
-
-        const channels = Object.entries(channelMap)
-            .filter(([_id, label]) => label.startsWith("# "))
-            .sort((a, b) => a[1].localeCompare(b[1]));
-        const roles = Object.entries(channelMap)
-            .filter(([_id, label]) => label.startsWith("🛡️"))
-            .sort((a, b) => a[1].localeCompare(b[1]));
-
-        const prevCh = chSel.value;
-        chSel.innerHTML = '<option value="">-- Chọn kênh --</option>';
-        channels.forEach(([id, label]) => {
-            const opt = document.createElement("option");
-            opt.value = id;
-            opt.textContent = label;
-            chSel.appendChild(opt);
-        });
-        if (prevCh) chSel.value = prevCh;
-
-        const prevRole = roleSel.value;
-        roleSel.innerHTML = '<option value="">(không yêu cầu)</option>';
-        roles.forEach(([id, label]) => {
-            const opt = document.createElement("option");
-            opt.value = id;
-            opt.textContent = label;
-            roleSel.appendChild(opt);
-        });
-        if (prevRole) roleSel.value = prevRole;
-
-        if (pingSel) {
-            const prevPing = pingSel.value;
-            pingSel.innerHTML = '';
-            const add = (value, label, disabled = false) => {
+        if (roleSel) {
+            const roles = Object.entries(channelMap)
+                .filter(([_id, label]) => label.startsWith("🛡️"))
+                .sort((a, b) => a[1].localeCompare(b[1]));
+            const prevRole = roleSel.value;
+            roleSel.innerHTML = '<option value="">(không yêu cầu)</option>';
+            roles.forEach(([id, label]) => {
                 const opt = document.createElement("option");
-                opt.value = value;
+                opt.value = id;
                 opt.textContent = label;
-                if (disabled) opt.disabled = true;
-                pingSel.appendChild(opt);
-            };
-            add("", "(không ping)");
-            add("everyone", "@everyone");
-            add("here", "@here");
-            if (roles.length) {
-                add("", "── Vai trò ──", true);
-                roles.forEach(([id, label]) => {
-                    add(id, "Ping " + label);
-                });
-            }
-            if (prevPing) pingSel.value = prevPing;
+                roleSel.appendChild(opt);
+            });
+            if (prevRole) roleSel.value = prevRole;
         }
+        // Channel + ping pickers giờ là multi-picker single-mode; init + refresh chip
+        initMultiPickers();
+        refreshMultiPickers();
     }
 
     // Parse "2026-05-15T18:30" as UTC+7 wall-clock time, return unix seconds (UTC).
@@ -600,6 +565,12 @@
                 document.getElementById("giveawayEndsAt").value = "";
                 document.getElementById("giveawayDescription").value = "";
                 document.getElementById("giveawayWinners").value = "1";
+                // Clear picker hidden inputs + refresh chip
+                const chHidden = document.getElementById("giveawayChannel");
+                const pingHidden = document.getElementById("giveawayPing");
+                if (chHidden) chHidden.value = "";
+                if (pingHidden) pingHidden.value = "";
+                refreshMultiPickers();
                 setTimeout(loadGiveaways, 2500);
             }
         } catch (err) {
@@ -939,13 +910,30 @@
             const input = root.querySelector("[data-picker-input]");
             const suggest = root.querySelector("[data-picker-suggest]");
             const prefix = root.dataset.pickerPrefix || "";
+            const single = root.dataset.pickerSingle === "true";
+            // Optional virtual entries (vd "@everyone", "@here") — format "id1:label1,id2:label2"
+            const extras = (root.dataset.pickerExtras || "")
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .map((s) => {
+                    const [id, ...rest] = s.split(":");
+                    return [id.trim(), rest.join(":").trim() || id.trim()];
+                });
             if (!hidden || !chipsBox || !input || !suggest) return;
 
             function getSelected() {
                 return splitIds(hidden.value);
             }
 
+            function labelFor(id) {
+                const extra = extras.find(([eid]) => eid === id);
+                if (extra) return extra[1];
+                return channelMap[id] || id;
+            }
+
             function setSelected(ids) {
+                if (single && ids.length > 1) ids = ids.slice(-1);
                 hidden.value = ids.join(",");
                 render();
             }
@@ -957,7 +945,7 @@
                     const chip = document.createElement("span");
                     chip.className = "multi-picker-chip";
                     const label = document.createElement("span");
-                    label.textContent = channelMap[id] || id;
+                    label.textContent = labelFor(id);
                     chip.appendChild(label);
                     const x = document.createElement("button");
                     x.type = "button";
@@ -972,24 +960,29 @@
                 });
             }
 
+            function buildPool() {
+                const fromMap = Object.entries(channelMap)
+                    .filter(([_id, label]) => !prefix || label.startsWith(prefix))
+                    .sort((a, b) => a[1].localeCompare(b[1]));
+                return extras.concat(fromMap);
+            }
+
             function refreshSuggest(query) {
                 const selected = new Set(getSelected());
                 const q = (query || "").trim().toLowerCase();
-                const matches = Object.entries(channelMap)
+                const matches = buildPool()
                     .filter(([id, label]) => {
                         if (selected.has(id)) return false;
-                        if (prefix && !label.startsWith(prefix)) return false;
                         if (!q) return true;
                         return label.toLowerCase().includes(q) || id.includes(q);
                     })
-                    .sort((a, b) => a[1].localeCompare(b[1]))
                     .slice(0, 60);
 
                 suggest.innerHTML = "";
                 if (!matches.length) {
                     const empty = document.createElement("div");
                     empty.className = "multi-picker-suggest-empty";
-                    empty.textContent = q ? "Không có role nào khớp" : "Đã chọn hết role có sẵn";
+                    empty.textContent = q ? "Không có kết quả khớp" : "Không còn lựa chọn";
                     suggest.appendChild(empty);
                 } else {
                     matches.forEach(([id, label]) => {
@@ -999,11 +992,20 @@
                         item.textContent = label;
                         item.addEventListener("mousedown", (e) => {
                             e.preventDefault();
-                            const ids = getSelected();
-                            if (!ids.includes(id)) ids.push(id);
-                            setSelected(ids);
+                            if (single) {
+                                setSelected([id]);
+                            } else {
+                                const ids = getSelected();
+                                if (!ids.includes(id)) ids.push(id);
+                                setSelected(ids);
+                            }
                             input.value = "";
-                            refreshSuggest("");
+                            if (single) {
+                                suggest.classList.remove("show");
+                                input.blur();
+                            } else {
+                                refreshSuggest("");
+                            }
                         });
                         suggest.appendChild(item);
                     });

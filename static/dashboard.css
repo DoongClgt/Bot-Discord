@@ -548,7 +548,7 @@ a:hover { text-decoration: underline; }
     background: rgba(0, 0, 0, 0.18);
 }
 .multi-picker-chips:empty::before {
-    content: "Chưa chọn role nào";
+    content: attr(data-empty);
     color: var(--text-faint);
     font-size: 12px;
     font-style: italic;
