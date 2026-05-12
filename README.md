@@ -124,6 +124,11 @@ Slash commands:
 /game remove <game>
 /game help
 /ticket_panel
+/giveaway start
+/giveaway end
+/giveaway reroll
+/giveaway cancel
+/giveaway list
 ```
 
 Text command aliases also available: `/online`, `/status`, `/patchcheck`, `/sdbcheckrecent`, `/patchrecent`, `/rescanchannels`.
@@ -160,6 +165,22 @@ Inspired by Ticket Tool / Tickety. Users open a private channel via a panel butt
 - Required bot permissions: `Manage Channels`, `Manage Messages`, `View Channel`, `Send Messages`, `Read Message History`, `Embed Links`, `Attach Files`.
 - Dashboard: **Tickets** page lists all closed transcripts with a per-row "Tải .txt" button and a header "Tải tất cả (.zip)" button. Endpoints: `GET /api/tickets/transcripts`, `GET /api/tickets/transcripts/<filename>`, `GET /api/tickets/transcripts/download_all` (zips `data/transcripts/*.txt` + `transcripts_index.jsonl` in-memory, no temp files). The 3 IDs show up as read-only chips in the **Cấu hình** page under "Ticket system".
 - Events logged: `ticket_open`, `ticket_confirm`, `ticket_close`, `ticket_delete`, `ticket_orphan`.
+
+## Giveaway System
+
+Button-based giveaways inspired by GiveawayBot / Carl-bot. Admin runs `/giveaway start`, users click the 🎉 button to enter, bot auto-ends and picks winners.
+
+- `/giveaway start prize:<text> duration:<10s|5m|1h|2d|1w> winners:<int> [description] [required_role] [channel]` (requires `Manage Server`). Min duration 10s, max 30 days.
+- `/giveaway end <message_id>` — end early.
+- `/giveaway reroll <message_id> [count]` — repick winners for an ended giveaway (kept indefinitely in `data/giveaways.json`).
+- `/giveaway cancel <message_id>` — cancel without picking winners; button disables and embed marks "đã hủy".
+- `/giveaway list` — list active giveaways in this guild.
+- Entry: click 🎉 to enter. Click again to withdraw. If `required_role` is set, users without that role get an ephemeral message instead. Button label shows live entrant count.
+- Scheduler: `tasks.loop(seconds=30)` checks for expired giveaways and ends them. If the bot was down past the end time, the next tick picks them up.
+- On end: bot edits original embed showing winners, posts a reply tagging them, appends a record to `data/giveaways_history.jsonl`. Winners get **only a channel mention** (no DM).
+- State persists in `data/giveaways.json` keyed by message_id. Persistent view (`custom_id="giveaway:enter"`) survives restarts.
+- Dashboard: **Giveaway** page has a **Tạo giveaway** form at the top (prize, duration, winners, channel dropdown, required role dropdown, description) plus tables for active (with "End now") and last 50 ended (with "Reroll"). Endpoints: `GET /api/giveaways`, `POST /api/giveaways/start`, `POST /api/giveaways/end`, `POST /api/giveaways/reroll`. Actions go through IPC to the bot.
+- Events logged: `giveaway_start`, `giveaway_end`, `giveaway_reroll`, `giveaway_cancel`.
 
 Notes:
 

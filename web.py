@@ -23,6 +23,8 @@ BOT_EVENTS_FILE = os.path.join(DATA_DIR, 'bot_events.log')
 BAN_LOG_FILE = os.path.join(DATA_DIR, 'ban_log.jsonl')
 TRANSCRIPT_DIR = os.path.join(DATA_DIR, 'transcripts')
 TRANSCRIPT_INDEX_FILE = os.path.join(DATA_DIR, 'transcripts_index.jsonl')
+GIVEAWAYS_STATE_FILE = os.path.join(DATA_DIR, 'giveaways.json')
+GIVEAWAYS_HISTORY_FILE = os.path.join(DATA_DIR, 'giveaways_history.jsonl')
 DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "5000"))
 DASHBOARD_PUBLIC_URL = os.getenv("DASHBOARD_PUBLIC_URL", "").strip()
@@ -263,6 +265,33 @@ def get_logs():
 def version():
     return jsonify(get_version_info())
 
+@app.route('/api/deploy', methods=['POST'])
+def deploy_webhook():
+    expected_token = os.getenv("DEPLOY_WEBHOOK_TOKEN", "").strip()
+    if expected_token:
+        auth_header = request.headers.get("Authorization", "")
+        supplied_token = ""
+        if auth_header.startswith("Bearer "):
+            supplied_token = auth_header.split(" ", 1)[1].strip()
+        if supplied_token != expected_token:
+            return jsonify({"success": False, "message": "Unauthorized"}), 401
+
+    script_path = os.path.join(APP_ROOT, "deploy", "deploy_from_webhook.sh")
+    if not os.path.exists(script_path):
+        return jsonify({"success": False, "message": "Deploy script not found"}), 500
+
+    log_path = os.path.join(DATA_DIR, "deploy_webhook.log")
+    with open(log_path, "a", encoding="utf-8") as log_file:
+        subprocess.Popen(
+            ["bash", script_path],
+            cwd=APP_ROOT,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+
+    return jsonify({"success": True, "message": "Deploy started"}), 202
+
 def get_bot_metrics():
     pid = is_bot_running()
     if not pid:
@@ -393,6 +422,112 @@ def tickets_transcript_download(filename):
         as_attachment=True,
         download_name=safe,
     )
+
+
+@app.route('/api/giveaways', methods=['GET'])
+def giveaways_list():
+    active = []
+    ended = []
+    if os.path.exists(GIVEAWAYS_STATE_FILE):
+        try:
+            with open(GIVEAWAYS_STATE_FILE, 'r', encoding='utf-8') as f:
+                state = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            state = {}
+        for mid, gw in state.items():
+            gw = dict(gw)
+            gw['message_id'] = mid
+            gw['entrants_count'] = len(gw.get('entrants', []))
+            gw.pop('entrants', None)  # bớt payload
+            if gw.get('ended') or gw.get('cancelled'):
+                ended.append(gw)
+            else:
+                active.append(gw)
+    active.sort(key=lambda g: g.get('ends_at_unix', 0))
+    ended.sort(key=lambda g: g.get('ended_at_unix', 0), reverse=True)
+    return jsonify({"active": active, "ended": ended[:50]})
+
+
+@app.route('/api/giveaways/start', methods=['POST'])
+def giveaways_start():
+    payload = request.json or {}
+    prize = str(payload.get('prize', '') or '').strip()
+    duration = str(payload.get('duration', '') or '').strip()
+    description = str(payload.get('description', '') or '').strip()
+    channel_id = str(payload.get('channel_id', '') or '').strip()
+    required_role_id = str(payload.get('required_role_id', '') or '').strip()
+    ping_target = str(payload.get('ping_target', '') or '').strip()
+    try:
+        winners = max(1, min(50, int(payload.get('winners', 1) or 1)))
+    except (ValueError, TypeError):
+        winners = 1
+
+    if not prize:
+        return jsonify({"success": False, "message": "Thiếu phần thưởng."}), 400
+    if not duration:
+        return jsonify({"success": False, "message": "Thiếu thời lượng."}), 400
+    if not channel_id.isdigit():
+        return jsonify({"success": False, "message": "Kênh không hợp lệ."}), 400
+    if required_role_id and not required_role_id.isdigit():
+        return jsonify({"success": False, "message": "Vai trò yêu cầu không hợp lệ."}), 400
+    if ping_target and ping_target not in ("everyone", "here") and not ping_target.isdigit():
+        return jsonify({"success": False, "message": "Tùy chọn ping không hợp lệ."}), 400
+    if not is_bot_running():
+        return jsonify({"success": False, "message": "Bot chưa chạy, không gửi được lệnh."}), 400
+
+    if os.path.exists(IPC_RESPONSE_FILE):
+        try:
+            os.remove(IPC_RESPONSE_FILE)
+        except OSError:
+            pass
+    atomic_write_json(IPC_CMD_FILE, {
+        "command": "giveaway_start",
+        "args": {
+            "prize": prize,
+            "duration": duration,
+            "winners": winners,
+            "description": description,
+            "channel_id": channel_id,
+            "required_role_id": required_role_id,
+            "ping_target": ping_target,
+        },
+    })
+    return jsonify({"success": True, "message": "Đã gửi lệnh tạo đợt quay thưởng."})
+
+
+@app.route('/api/giveaways/end', methods=['POST'])
+def giveaways_end():
+    payload = request.json or {}
+    mid = str(payload.get('message_id', '')).strip()
+    if not mid.isdigit():
+        return jsonify({"success": False, "message": "Message ID phải là số."}), 400
+    if not is_bot_running():
+        return jsonify({"success": False, "message": "Bot chưa chạy, không gửi được lệnh."}), 400
+    if os.path.exists(IPC_RESPONSE_FILE):
+        try:
+            os.remove(IPC_RESPONSE_FILE)
+        except OSError:
+            pass
+    atomic_write_json(IPC_CMD_FILE, {"command": "giveaway_end", "args": {"message_id": mid}})
+    return jsonify({"success": True, "message": "Đã gửi lệnh end."})
+
+
+@app.route('/api/giveaways/reroll', methods=['POST'])
+def giveaways_reroll():
+    payload = request.json or {}
+    mid = str(payload.get('message_id', '')).strip()
+    count = int(payload.get('count', 1) or 1)
+    if not mid.isdigit():
+        return jsonify({"success": False, "message": "Message ID phải là số."}), 400
+    if not is_bot_running():
+        return jsonify({"success": False, "message": "Bot chưa chạy, không gửi được lệnh."}), 400
+    if os.path.exists(IPC_RESPONSE_FILE):
+        try:
+            os.remove(IPC_RESPONSE_FILE)
+        except OSError:
+            pass
+    atomic_write_json(IPC_CMD_FILE, {"command": "giveaway_reroll", "args": {"message_id": mid, "count": count}})
+    return jsonify({"success": True, "message": "Đã gửi lệnh reroll."})
 
 
 @app.route('/api/ban_log/download', methods=['GET'])

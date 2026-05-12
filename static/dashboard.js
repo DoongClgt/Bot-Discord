@@ -38,6 +38,7 @@
         logs: { title: "Log gần đây", subtitle: "Sự kiện mới nhất từ bot" },
         banlog: { title: "Ban log", subtitle: "Lịch sử ban từ spam trap, có thể tải về" },
         tickets: { title: "Tickets", subtitle: "Transcript ticket đã đóng, có thể tải về" },
+        giveaway: { title: "Quay thưởng", subtitle: "Quản lý các đợt quay thưởng đang chạy và đã kết thúc" },
         version: { title: "Version", subtitle: "Thông tin commit và môi trường" },
     };
 
@@ -112,6 +113,7 @@
         if (page === "version") loadVersion();
         if (page === "banlog") loadBanLog();
         if (page === "tickets") loadTickets();
+        if (page === "giveaway") loadGiveaways();
     }
 
     function bindNav() {
@@ -447,6 +449,282 @@
             });
         } catch {
             body.innerHTML = '<tr><td colspan="4" class="readonly-empty">Không tải được ban log.</td></tr>';
+        }
+    }
+
+    /* ── Giveaway ─────────────────────────────────────────── */
+
+    function fmtUnix(unix) {
+        if (!unix) return "-";
+        const d = new Date(Number(unix) * 1000);
+        if (isNaN(d.getTime())) return "-";
+        const pad = (n) => String(n).padStart(2, "0");
+        return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function fmtRemaining(endsUnix) {
+        if (!endsUnix) return "-";
+        const now = Math.floor(Date.now() / 1000);
+        let s = Number(endsUnix) - now;
+        if (s <= 0) return "đã hết";
+        const d = Math.floor(s / 86400); s %= 86400;
+        const h = Math.floor(s / 3600); s %= 3600;
+        const m = Math.floor(s / 60);
+        const parts = [];
+        if (d) parts.push(d + "d");
+        if (h) parts.push(h + "h");
+        if (m && !d) parts.push(m + "m");
+        if (!parts.length) parts.push("<1m");
+        return parts.join(" ");
+    }
+
+    function populateGiveawayDropdowns() {
+        const chSel = document.getElementById("giveawayChannel");
+        const roleSel = document.getElementById("giveawayRole");
+        const pingSel = document.getElementById("giveawayPing");
+        if (!chSel || !roleSel) return;
+
+        const channels = Object.entries(channelMap)
+            .filter(([_id, label]) => label.startsWith("# "))
+            .sort((a, b) => a[1].localeCompare(b[1]));
+        const roles = Object.entries(channelMap)
+            .filter(([_id, label]) => label.startsWith("🛡️"))
+            .sort((a, b) => a[1].localeCompare(b[1]));
+
+        const prevCh = chSel.value;
+        chSel.innerHTML = '<option value="">-- Chọn kênh --</option>';
+        channels.forEach(([id, label]) => {
+            const opt = document.createElement("option");
+            opt.value = id;
+            opt.textContent = label;
+            chSel.appendChild(opt);
+        });
+        if (prevCh) chSel.value = prevCh;
+
+        const prevRole = roleSel.value;
+        roleSel.innerHTML = '<option value="">(không yêu cầu)</option>';
+        roles.forEach(([id, label]) => {
+            const opt = document.createElement("option");
+            opt.value = id;
+            opt.textContent = label;
+            roleSel.appendChild(opt);
+        });
+        if (prevRole) roleSel.value = prevRole;
+
+        if (pingSel) {
+            const prevPing = pingSel.value;
+            pingSel.innerHTML = '';
+            const add = (value, label, disabled = false) => {
+                const opt = document.createElement("option");
+                opt.value = value;
+                opt.textContent = label;
+                if (disabled) opt.disabled = true;
+                pingSel.appendChild(opt);
+            };
+            add("", "(không ping)");
+            add("everyone", "@everyone");
+            add("here", "@here");
+            if (roles.length) {
+                add("", "── Vai trò ──", true);
+                roles.forEach(([id, label]) => {
+                    add(id, "Ping " + label);
+                });
+            }
+            if (prevPing) pingSel.value = prevPing;
+        }
+    }
+
+    // Parse "2026-05-15T18:30" as UTC+7 wall-clock time, return unix seconds (UTC).
+    function parseUtc7Datetime(s) {
+        if (!s) return null;
+        const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(s);
+        if (!m) return null;
+        const y = +m[1], mo = +m[2], d = +m[3], hh = +m[4], mm = +m[5];
+        // Wall-clock in UTC+7 → subtract 7h to get UTC instant
+        const utcMs = Date.UTC(y, mo - 1, d, hh - 7, mm, 0);
+        return Math.floor(utcMs / 1000);
+    }
+
+    function updateUtc7NowDisplay() {
+        const el = document.getElementById("giveawayUtc7Now");
+        if (!el) return;
+        const utcMs = Date.now();
+        const utc7 = new Date(utcMs + 7 * 3600 * 1000);
+        const pad = (n) => String(n).padStart(2, "0");
+        el.textContent = `${pad(utc7.getUTCDate())}-${pad(utc7.getUTCMonth() + 1)}-${utc7.getUTCFullYear()} ${pad(utc7.getUTCHours())}:${pad(utc7.getUTCMinutes())}`;
+    }
+
+    async function startGiveaway() {
+        const prize = (document.getElementById("giveawayPrize") || {}).value?.trim() || "";
+        let duration = (document.getElementById("giveawayDuration") || {}).value?.trim() || "";
+        const endsAtStr = (document.getElementById("giveawayEndsAt") || {}).value || "";
+        const winners = parseInt((document.getElementById("giveawayWinners") || {}).value, 10) || 1;
+        const description = (document.getElementById("giveawayDescription") || {}).value?.trim() || "";
+        const channel_id = (document.getElementById("giveawayChannel") || {}).value || "";
+        const required_role_id = (document.getElementById("giveawayRole") || {}).value || "";
+        const ping_target = (document.getElementById("giveawayPing") || {}).value || "";
+
+        if (!prize) { showToast("Thiếu phần thưởng", "warning"); return; }
+        if (!channel_id) { showToast("Chọn channel post", "warning"); return; }
+
+        // Nếu có chọn "kết thúc lúc", convert thành duration tương đối
+        if (endsAtStr) {
+            const endsUnix = parseUtc7Datetime(endsAtStr);
+            if (endsUnix === null) {
+                showToast("Datetime không hợp lệ", "warning"); return;
+            }
+            const nowUnix = Math.floor(Date.now() / 1000);
+            const secs = endsUnix - nowUnix;
+            if (secs <= 0) {
+                showToast("Thời điểm kết thúc phải ở tương lai (UTC+7)", "warning"); return;
+            }
+            if (secs > 30 * 86400) {
+                showToast("Tối đa 30 ngày kể từ hiện tại", "warning"); return;
+            }
+            duration = `${secs}s`;
+        }
+
+        if (!duration) { showToast("Thiếu duration (điền text vd 1h hoặc chọn datetime UTC+7)", "warning"); return; }
+
+        try {
+            const res = await fetch("/api/giveaways/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prize, duration, winners, description, channel_id, required_role_id, ping_target }),
+            });
+            const data = await res.json();
+            showToast(data.message || "Đã gửi", data.success ? "success" : "warning");
+            if (data.success) {
+                document.getElementById("giveawayPrize").value = "";
+                document.getElementById("giveawayDuration").value = "";
+                document.getElementById("giveawayEndsAt").value = "";
+                document.getElementById("giveawayDescription").value = "";
+                document.getElementById("giveawayWinners").value = "1";
+                setTimeout(loadGiveaways, 2500);
+            }
+        } catch (err) {
+            showToast("Lỗi gọi API: " + (err.message || err), "error");
+        }
+    }
+
+    async function loadGiveaways() {
+        populateGiveawayDropdowns();
+        updateUtc7NowDisplay();
+        const activeBody = document.getElementById("giveawayActiveBody");
+        const endedBody = document.getElementById("giveawayEndedBody");
+        const activeTotal = document.getElementById("giveawayActiveTotal");
+        const endedTotal = document.getElementById("giveawayEndedTotal");
+        if (!activeBody || !endedBody) return;
+        try {
+            const res = await fetch("/api/giveaways");
+            const data = await res.json();
+            const active = data.active || [];
+            const ended = data.ended || [];
+            if (activeTotal) activeTotal.textContent = active.length ? `${active.length} đang chạy` : "";
+            if (endedTotal) endedTotal.textContent = ended.length ? `${ended.length} đã kết thúc (50 gần nhất)` : "";
+
+            activeBody.innerHTML = "";
+            if (!active.length) {
+                activeBody.innerHTML = '<tr><td colspan="6" class="readonly-empty">Chưa có đợt quay thưởng nào đang chạy.</td></tr>';
+            } else {
+                active.forEach((gw) => {
+                    const row = document.createElement("tr");
+                    setTextCell(row, gw.prize || "?", "log-message");
+                    const chName = channelMap[gw.channel_id] || gw.channel_id || "-";
+                    setTextCell(row, chName);
+                    const host = (gw.host_name || "-") + (gw.host_id ? "\n" + gw.host_id : "");
+                    setTextCell(row, host, "log-message");
+                    setTextCell(row, fmtRemaining(gw.ends_at_unix));
+                    setTextCell(row, String(gw.entrants_count || 0));
+                    const td = document.createElement("td");
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "btn danger";
+                    btn.textContent = "Kết thúc";
+                    btn.style.padding = "5px 10px";
+                    btn.style.fontSize = "12px";
+                    btn.dataset.giveawayMid = gw.message_id;
+                    btn.addEventListener("click", () => endGiveaway(gw.message_id, gw.prize));
+                    td.appendChild(btn);
+                    row.appendChild(td);
+                    activeBody.appendChild(row);
+                });
+            }
+
+            endedBody.innerHTML = "";
+            if (!ended.length) {
+                endedBody.innerHTML = '<tr><td colspan="6" class="readonly-empty">Chưa có đợt quay thưởng đã kết thúc.</td></tr>';
+            } else {
+                ended.forEach((gw) => {
+                    const row = document.createElement("tr");
+                    setTextCell(row, gw.prize || "?", "log-message");
+                    setTextCell(row, channelMap[gw.channel_id] || gw.channel_id || "-");
+                    setTextCell(row, (gw.host_name || "-") + (gw.host_id ? "\n" + gw.host_id : ""), "log-message");
+                    setTextCell(row, fmtUnix(gw.ended_at_unix || gw.ends_at_unix));
+                    const winners = gw.winners || [];
+                    const wText = gw.cancelled ? "(đã hủy)" : (winners.length ? winners.map((w) => channelMap[w] || w).join(", ") : "(không có)");
+                    setTextCell(row, wText, "log-message");
+                    const td = document.createElement("td");
+                    if (!gw.cancelled) {
+                        const btn = document.createElement("button");
+                        btn.type = "button";
+                        btn.className = "btn secondary";
+                        btn.textContent = "Chọn lại";
+                        btn.style.padding = "5px 10px";
+                        btn.style.fontSize = "12px";
+                        btn.addEventListener("click", () => rerollGiveaway(gw.message_id, gw.prize));
+                        td.appendChild(btn);
+                    } else {
+                        td.textContent = "-";
+                    }
+                    row.appendChild(td);
+                    endedBody.appendChild(row);
+                });
+            }
+        } catch {
+            activeBody.innerHTML = '<tr><td colspan="6" class="readonly-empty">Không tải được dữ liệu.</td></tr>';
+        }
+    }
+
+    async function endGiveaway(mid, prize) {
+        if (!confirm(`Kết thúc ngay đợt "${prize || mid}"?`)) return;
+        try {
+            const res = await fetch("/api/giveaways/end", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message_id: mid }),
+            });
+            const data = await res.json();
+            showToast(data.message || "Đã gửi lệnh", data.success ? "success" : "warning");
+            if (data.success) {
+                setTimeout(loadGiveaways, 1500);
+            }
+        } catch (err) {
+            showToast("Lỗi gọi API: " + (err.message || err), "error");
+        }
+    }
+
+    async function rerollGiveaway(mid, prize) {
+        const countStr = prompt(`Chọn lại người thắng cho "${prize || mid}" — chọn bao nhiêu người?`, "1");
+        if (!countStr) return;
+        const count = parseInt(countStr, 10);
+        if (!Number.isFinite(count) || count < 1) {
+            showToast("Số không hợp lệ", "warning");
+            return;
+        }
+        try {
+            const res = await fetch("/api/giveaways/reroll", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message_id: mid, count }),
+            });
+            const data = await res.json();
+            showToast(data.message || "Đã gửi lệnh", data.success ? "success" : "warning");
+            if (data.success) {
+                setTimeout(loadGiveaways, 1500);
+            }
+        } catch (err) {
+            showToast("Lỗi gọi API: " + (err.message || err), "error");
         }
     }
 
@@ -859,6 +1137,8 @@
                 else if (action === "download-banlog") downloadBanLog();
                 else if (action === "reload-tickets") loadTickets();
                 else if (action === "download-all-transcripts") downloadAllTranscripts();
+                else if (action === "reload-giveaways") loadGiveaways();
+                else if (action === "start-giveaway") startGiveaway();
                 else if (action === "open-env") openEnvModal();
                 else if (action === "close-modal") closeModal(btn.closest(".modal-backdrop"));
             });
@@ -892,6 +1172,7 @@
         setInterval(fetchStatus, 3000);
         setInterval(fetchMetrics, 2000);
         setInterval(loadLogs, 10000);
+        setInterval(updateUtc7NowDisplay, 30000);
         window.addEventListener("resize", () => {
             renderSpark(els.cpuSparkline, cpuBuffer, Math.max(100, lastCpuCount * 100));
             renderSpark(els.ramSparkline, ramBuffer);
