@@ -877,58 +877,6 @@
 
     }
 
-    /* ── Sync role progress ───────────────────────────────── */
-
-    const fmtNum = (n) => Number(n || 0).toLocaleString("vi-VN");
-
-    let lastSyncRoleFinished = "";
-    async function fetchSyncRoleProgress() {
-        const card = document.getElementById("syncRoleCard");
-        if (!card) return;
-        try {
-            const res = await fetch("/api/syncrole_progress");
-            const data = await res.json();
-            if (!data || !data.available) {
-                card.style.display = "none";
-                return;
-            }
-            card.style.display = "";
-            const total = Number(data.total) || 0;
-            const scanned = Number(data.scanned) || 0;
-            const granted = Number(data.granted) || 0;
-            const skipped = Number(data.skipped) || 0;
-            const failed = Number(data.failed) || 0;
-            const pct = total > 0 ? Math.min(100, Math.round((scanned / total) * 100)) : (data.running ? 0 : 100);
-
-            const fill = document.getElementById("syncRoleBarFill");
-            const text = document.getElementById("syncRoleBarText");
-            if (fill) fill.style.width = pct + "%";
-            if (text) text.textContent = `${fmtNum(scanned)} / ${fmtNum(total)} (${pct}%)`;
-
-            const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-            setText("syncRoleGuild", data.guild_name || "-");
-            setText("syncRoleName", data.role_name ? `${data.role_name} (${data.role_id || "?"})` : "-");
-            setText("syncRoleTotal", fmtNum(total));
-            setText("syncRoleScanned", fmtNum(scanned));
-            setText("syncRoleGranted", fmtNum(granted));
-            setText("syncRoleSkipped", fmtNum(skipped));
-            setText("syncRoleFailed", fmtNum(failed));
-            setText("syncRoleStarted", data.started_at || "-");
-            setText("syncRoleFinished", data.finished_at || (data.running ? "Đang chạy..." : "-"));
-            setText("syncRoleMessage", data.message || "");
-
-            const note = document.getElementById("syncRoleStatusNote");
-            if (note) note.textContent = data.running ? "Đang chạy..." : "Đã hoàn tất";
-
-            if (!data.running && data.finished_at && data.finished_at !== lastSyncRoleFinished) {
-                lastSyncRoleFinished = data.finished_at;
-                if (data.message) showToast(data.message, failed > 0 ? "warning" : "success");
-            }
-        } catch {
-            // bỏ qua lỗi mạng tạm thời
-        }
-    }
-
     /* ── Boot ─────────────────────────────────────────────── */
 
     document.addEventListener("DOMContentLoaded", async () => {
@@ -941,11 +889,9 @@
         await loadLogs();
         fetchStatus();
         fetchMetrics();
-        fetchSyncRoleProgress();
         setInterval(fetchStatus, 3000);
         setInterval(fetchMetrics, 2000);
         setInterval(loadLogs, 10000);
-        setInterval(fetchSyncRoleProgress, 2000);
         window.addEventListener("resize", () => {
             renderSpark(els.cpuSparkline, cpuBuffer, Math.max(100, lastCpuCount * 100));
             renderSpark(els.ramSparkline, ramBuffer);

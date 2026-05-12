@@ -123,7 +123,6 @@ Slash commands:
 /game add <app_id>
 /game remove <game>
 /game help
-/syncrole
 /ticket_panel
 ```
 
@@ -136,11 +135,9 @@ Set `NEW_MEMBER_ROLE_ID` so the bot assigns that role to every member who joins.
 - Bots and members who already have the role are skipped (idempotent).
 - The bot needs `Manage Roles` and its highest role must sit **above** the target role.
 - Leave the variable empty to disable. Requires the `Server Members` privileged intent to be enabled in the Discord Developer Portal.
-- `AUTO_ROLE_ON_JOIN_ENABLED` toggles the on-join handler on/off without clearing the role ID. Defaults to `true`; set to `false`/`0`/`off`/`no` (or empty) to disable. `/syncrole` ignores this flag.
+- `AUTO_ROLE_ON_JOIN_ENABLED` toggles the on-join handler on/off without clearing the role ID. Defaults to `true`; set to `false`/`0`/`off`/`no` (or empty) to disable.
 - Logged to `bot_events.log` under event `auto_role` (success, missing role, Forbidden, HTTP error).
 - Dashboard: pick **Bật/Tắt** in "Tự cấp role khi member join" and enter the Role ID under "Role tự cấp cho thành viên mới", then click Save — the bot restarts automatically. The resolved role name is shown right under the input.
-- `/syncrole` (slash + text alias `/syncroles`): scans all current members and grants the role to anyone missing it. Requires `Manage Roles`. Replies ephemerally. Sleeps 0.5s between grants to avoid rate limits. Logs to event `auto_role_sync`.
-- Dashboard shows a **"Tiến độ /syncrole"** card on the Overview tab: progress bar + Granted/Skipped/Failed chips + start/finish timestamps. The bot writes `data/syncrole_progress.json` every ~1s, the dashboard polls every 2s, and the card stays hidden until `/syncrole` has been run at least once. A toast fires when the run finishes.
 
 ## Ticket System
 

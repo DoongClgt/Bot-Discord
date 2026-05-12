@@ -21,7 +21,6 @@ IPC_RESPONSE_FILE = os.path.join(DATA_DIR, 'ipc_response.txt')
 CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
 BOT_EVENTS_FILE = os.path.join(DATA_DIR, 'bot_events.log')
 BAN_LOG_FILE = os.path.join(DATA_DIR, 'ban_log.jsonl')
-SYNCROLE_PROGRESS_FILE = os.path.join(DATA_DIR, 'syncrole_progress.json')
 TRANSCRIPT_DIR = os.path.join(DATA_DIR, 'transcripts')
 TRANSCRIPT_INDEX_FILE = os.path.join(DATA_DIR, 'transcripts_index.jsonl')
 DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
@@ -330,18 +329,6 @@ def ban_log_list():
             items.append({"time": "", "raw": line})
     items.reverse()
     return jsonify({"count": len(items), "total_lines": len(lines), "items": items})
-
-@app.route('/api/syncrole_progress', methods=['GET'])
-def syncrole_progress():
-    if not os.path.exists(SYNCROLE_PROGRESS_FILE):
-        return jsonify({"available": False})
-    try:
-        with open(SYNCROLE_PROGRESS_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return jsonify({"available": False})
-    data["available"] = True
-    return jsonify(data)
 
 @app.route('/api/tickets/transcripts', methods=['GET'])
 def tickets_transcripts_list():
