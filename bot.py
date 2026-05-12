@@ -59,6 +59,7 @@ STARTUP_CHANNEL_ID = int(STARTUP_CHANNEL_ID_STR) if STARTUP_CHANNEL_ID_STR.isdig
 
 NEW_MEMBER_ROLE_ID_STR = os.getenv('NEW_MEMBER_ROLE_ID', '')
 NEW_MEMBER_ROLE_ID = int(NEW_MEMBER_ROLE_ID_STR) if NEW_MEMBER_ROLE_ID_STR.isdigit() else 0
+AUTO_ROLE_ON_JOIN_ENABLED = os.getenv('AUTO_ROLE_ON_JOIN_ENABLED', 'true').strip().lower() not in ('false', '0', 'no', 'off', '')
 
 GENERAL_LOG_CHANNEL_ID_STR = os.getenv('GENERAL_LOG_CHANNEL_ID', '')
 GENERAL_LOG_CHANNEL_ID = int(GENERAL_LOG_CHANNEL_ID_STR) if GENERAL_LOG_CHANNEL_ID_STR.isdigit() else 0
@@ -1641,6 +1642,8 @@ async def on_ready():
 # Sự kiện khi có thành viên mới tham gia server — tự động cấp role mặc định
 @bot.event
 async def on_member_join(member: discord.Member):
+    if not AUTO_ROLE_ON_JOIN_ENABLED:
+        return
     if not NEW_MEMBER_ROLE_ID:
         return
     if member.bot:
