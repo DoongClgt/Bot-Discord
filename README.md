@@ -82,6 +82,15 @@ NEW_MEMBER_ROLE_ID=''
 # Toggle the on-join handler without clearing the role ID above
 AUTO_ROLE_ON_JOIN_ENABLED='true'
 
+# Ticket system
+TICKET_CATEGORY_ID=''
+TICKET_CONFIRMED_CATEGORY_ID=''
+TICKET_CLOSED_CATEGORY_ID=''
+TICKET_SUPPORT_ROLE_IDS=''
+TICKET_LOG_CHANNEL_ID=''
+TICKET_PANEL_TITLE=''
+TICKET_PANEL_DESCRIPTION=''
+
 # Steam watcher
 STEAMDB_PATCH_CHANNEL_ID=''
 STEAMDB_PATCH_MENTION_USER_ID=''
@@ -115,6 +124,7 @@ Slash commands:
 /game remove <game>
 /game help
 /syncrole
+/ticket_panel
 ```
 
 Text command aliases also available: `/online`, `/status`, `/patchcheck`, `/sdbcheckrecent`, `/patchrecent`, `/rescanchannels`.
@@ -131,6 +141,28 @@ Set `NEW_MEMBER_ROLE_ID` so the bot assigns that role to every member who joins.
 - Dashboard: pick **Bật/Tắt** in "Tự cấp role khi member join" and enter the Role ID under "Role tự cấp cho thành viên mới", then click Save — the bot restarts automatically. The resolved role name is shown right under the input.
 - `/syncrole` (slash + text alias `/syncroles`): scans all current members and grants the role to anyone missing it. Requires `Manage Roles`. Replies ephemerally. Sleeps 0.5s between grants to avoid rate limits. Logs to event `auto_role_sync`.
 - Dashboard shows a **"Tiến độ /syncrole"** card on the Overview tab: progress bar + Granted/Skipped/Failed chips + start/finish timestamps. The bot writes `data/syncrole_progress.json` every ~1s, the dashboard polls every 2s, and the card stays hidden until `/syncrole` has been run at least once. A toast fires when the run finishes.
+
+## Ticket System
+
+Inspired by Ticket Tool / Tickety. Users open a private channel via a panel button; staff respond inside; on close the bot saves a text transcript and deletes the channel.
+
+- `/ticket_panel` (slash, requires `Manage Server`): posts an embed with a "🎫 Tạo ticket" button in the current channel. Re-runnable; old panels still work after restart thanks to persistent views.
+- Panel embed title + description are customizable via `TICKET_PANEL_TITLE` and `TICKET_PANEL_DESCRIPTION` (markdown + newlines supported). Empty falls back to defaults. Edit on dashboard → Cấu hình → Ticket; bot restart applies it, but existing posted panels keep their old text — re-run `/ticket_panel` to refresh.
+- Click the panel button → bot creates a private text channel `NNNN-<username>` under `TICKET_CATEGORY_ID` (the **pending** category). Only the requester, the bot, and every role in `TICKET_SUPPORT_ROLE_IDS` (comma-separated) can see it (`@everyone` view denied). One open ticket per user — clicking again returns the existing channel.
+- Inside the ticket: bot pings **only the requester** (support roles never get pinged — they see the channel via the pending category) and shows three persistent buttons (support-only): **✅ Xác nhận**, **🔒 Close**, **🗑️ Delete**.
+- **Xác nhận** → records `confirmed_by`/`confirmed_at`, renames the channel to `NNNN-<staff>-<user>` (lowercased, sanitized to `[a-z0-9-]`, capped at 100 chars), and if `TICKET_CONFIRMED_CATEGORY_ID` is set moves the channel there via `channel.edit(name=..., category=...)`. Per-channel overwrites are preserved (no `sync_permissions`), so privacy stays intact. Can only be confirmed once. Note Discord's rate limit: 2 renames per 10 minutes per channel.
+- **Close** → records `closed_by`/`closed_at` and, if `TICKET_CLOSED_CATEGORY_ID` is set, moves the channel there (archived). Channel is NOT deleted; no transcript created. State stays in `data/tickets.json` until Delete.
+- **Delete** → confirm ephemeral → records `deleted_by`/`deleted_at`, generates transcript, posts to log channel, deletes the channel. This is the only action that creates a transcript file.
+- Transcript creation (only on **Delete**):
+  - Bot dumps full message history into a `.txt` transcript (timestamp, author, content, embeds, attachment URLs).
+  - Saves to `data/transcripts/ticket-NNNN-<channelId>.txt` and appends a record to `data/transcripts_index.jsonl`.
+  - If `TICKET_LOG_CHANNEL_ID` is set, posts an embed summary + transcript file there.
+  - Sleeps 3s, then deletes the channel.
+- Manual channel delete (no Close button) → `on_guild_channel_delete` cleans the entry from `data/tickets.json` and logs `ticket_orphan`.
+- Counter persists in `data/tickets_counter.txt` (monotonically increasing across restarts).
+- Required bot permissions: `Manage Channels`, `Manage Messages`, `View Channel`, `Send Messages`, `Read Message History`, `Embed Links`, `Attach Files`.
+- Dashboard: **Tickets** page lists all closed transcripts with a per-row "Tải .txt" button and a header "Tải tất cả (.zip)" button. Endpoints: `GET /api/tickets/transcripts`, `GET /api/tickets/transcripts/<filename>`, `GET /api/tickets/transcripts/download_all` (zips `data/transcripts/*.txt` + `transcripts_index.jsonl` in-memory, no temp files). The 3 IDs show up as read-only chips in the **Cấu hình** page under "Ticket system".
+- Events logged: `ticket_open`, `ticket_confirm`, `ticket_close`, `ticket_delete`, `ticket_orphan`.
 
 Notes:
 

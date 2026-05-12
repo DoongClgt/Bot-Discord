@@ -1,5 +1,6 @@
 from flask import Flask, render_template, jsonify, request, send_file, abort
 import datetime
+import io
 import json
 import psutil
 import subprocess
@@ -7,6 +8,7 @@ import os
 import sys
 import dotenv
 import time
+import zipfile
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -20,6 +22,8 @@ CHANNELS_FILE = os.path.join(DATA_DIR, 'channels.json')
 BOT_EVENTS_FILE = os.path.join(DATA_DIR, 'bot_events.log')
 BAN_LOG_FILE = os.path.join(DATA_DIR, 'ban_log.jsonl')
 SYNCROLE_PROGRESS_FILE = os.path.join(DATA_DIR, 'syncrole_progress.json')
+TRANSCRIPT_DIR = os.path.join(DATA_DIR, 'transcripts')
+TRANSCRIPT_INDEX_FILE = os.path.join(DATA_DIR, 'transcripts_index.jsonl')
 DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "5000"))
 DASHBOARD_PUBLIC_URL = os.getenv("DASHBOARD_PUBLIC_URL", "").strip()
@@ -338,6 +342,71 @@ def syncrole_progress():
         return jsonify({"available": False})
     data["available"] = True
     return jsonify(data)
+
+@app.route('/api/tickets/transcripts', methods=['GET'])
+def tickets_transcripts_list():
+    if not os.path.exists(TRANSCRIPT_INDEX_FILE):
+        return jsonify({"count": 0, "items": []})
+    try:
+        with open(TRANSCRIPT_INDEX_FILE, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+    except OSError:
+        return jsonify({"count": 0, "items": []})
+
+    items = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            items.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    items.reverse()
+    return jsonify({"count": len(items), "items": items})
+
+
+@app.route('/api/tickets/transcripts/download_all', methods=['GET'])
+def tickets_transcripts_download_all():
+    if not os.path.isdir(TRANSCRIPT_DIR):
+        return jsonify({"success": False, "message": "Chưa có transcript nào."}), 404
+    files = sorted(f for f in os.listdir(TRANSCRIPT_DIR) if f.endswith('.txt'))
+    if not files and not os.path.exists(TRANSCRIPT_INDEX_FILE):
+        return jsonify({"success": False, "message": "Chưa có transcript nào."}), 404
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for fname in files:
+            fpath = os.path.join(TRANSCRIPT_DIR, fname)
+            if os.path.isfile(fpath):
+                zf.write(fpath, arcname=f"transcripts/{fname}")
+        if os.path.exists(TRANSCRIPT_INDEX_FILE):
+            zf.write(TRANSCRIPT_INDEX_FILE, arcname='transcripts_index.jsonl')
+    buf.seek(0)
+
+    ts = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    return send_file(
+        buf,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=f'transcripts-{ts}.zip',
+    )
+
+
+@app.route('/api/tickets/transcripts/<path:filename>', methods=['GET'])
+def tickets_transcript_download(filename):
+    # Cách ly thư mục, không cho path traversal
+    safe = os.path.basename(filename)
+    file_path = os.path.join(TRANSCRIPT_DIR, safe)
+    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        abort(404)
+    return send_file(
+        file_path,
+        mimetype='text/plain; charset=utf-8',
+        as_attachment=True,
+        download_name=safe,
+    )
+
 
 @app.route('/api/ban_log/download', methods=['GET'])
 def ban_log_download():

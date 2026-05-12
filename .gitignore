@@ -10,6 +10,8 @@ data/*.jsonl
 data/channels.json
 data/ipc_cmd.txt
 data/ipc_response.txt
+data/tickets_counter.txt
+data/transcripts/
 data/*.tmp
 
 scripts/

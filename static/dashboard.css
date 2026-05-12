@@ -438,7 +438,19 @@ a:hover { text-decoration: underline; }
     border-color: var(--d-blurple);
     box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.18);
 }
+.form-group textarea {
+    resize: vertical;
+    min-height: 90px;
+    line-height: 1.5;
+    font-family: inherit;
+}
 .form-group .hint { font-size: 11px; color: var(--text-faint); }
+.form-group .hint code {
+    background: var(--bg-input);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+}
 
 .readonly-list {
     display: flex;
@@ -471,6 +483,168 @@ a:hover { text-decoration: underline; }
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+/* ── Settings sub-tabs ─────────────────────────────────────────── */
+
+.settings-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.settings-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px;
+}
+.settings-tab {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 7px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.12s ease, color 0.12s ease;
+    white-space: nowrap;
+}
+.settings-tab:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-normal);
+}
+.settings-tab.active {
+    background: var(--d-blurple);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(88, 101, 242, 0.35);
+}
+.settings-panel { display: none; }
+.settings-panel.active { display: block; }
+
+/* ── Multi-select picker (role/channel) ─────────────────────────── */
+
+.multi-picker {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.multi-picker-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    min-height: 40px;
+    background: rgba(0, 0, 0, 0.18);
+}
+.multi-picker-chips:empty::before {
+    content: "Chưa chọn role nào";
+    color: var(--text-faint);
+    font-size: 12px;
+    font-style: italic;
+}
+.multi-picker-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(88, 101, 242, 0.18);
+    border: 1px solid rgba(88, 101, 242, 0.45);
+    color: var(--text-normal);
+    padding: 3px 4px 3px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+}
+.multi-picker-chip-x {
+    appearance: none;
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-normal);
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    transition: background 0.12s ease;
+}
+.multi-picker-chip-x:hover {
+    background: var(--d-red, #ed4245);
+    color: #fff;
+}
+.multi-picker-input-wrap {
+    position: relative;
+}
+.multi-picker-input {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    color: var(--text-normal);
+    outline: none;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.multi-picker-input:focus {
+    border-color: var(--d-blurple);
+    box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.18);
+}
+.multi-picker-suggest {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 50;
+    max-height: 240px;
+    overflow-y: auto;
+    background: var(--bg-floating, #18191c);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    padding: 4px;
+}
+.multi-picker-suggest.show {
+    display: block;
+}
+.multi-picker-suggest-item {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--text-normal);
+    text-align: left;
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    display: block;
+}
+.multi-picker-suggest-item:hover,
+.multi-picker-suggest-item:focus {
+    background: rgba(88, 101, 242, 0.22);
+    outline: none;
+}
+.multi-picker-suggest-empty {
+    padding: 10px;
+    color: var(--text-faint);
+    font-size: 12px;
+    font-style: italic;
+    text-align: center;
 }
 
 /* ── Logs table ─────────────────────────────────────────────────── */

@@ -37,6 +37,7 @@
         steam: { title: "Steam Watcher", subtitle: "Theo dõi patch trên Steam" },
         logs: { title: "Log gần đây", subtitle: "Sự kiện mới nhất từ bot" },
         banlog: { title: "Ban log", subtitle: "Lịch sử ban từ spam trap, có thể tải về" },
+        tickets: { title: "Tickets", subtitle: "Transcript ticket đã đóng, có thể tải về" },
         version: { title: "Version", subtitle: "Thông tin commit và môi trường" },
     };
 
@@ -110,11 +111,26 @@
         if (page === "logs") loadLogs();
         if (page === "version") loadVersion();
         if (page === "banlog") loadBanLog();
+        if (page === "tickets") loadTickets();
     }
 
     function bindNav() {
         document.querySelectorAll(".nav-item").forEach((btn) => {
             btn.addEventListener("click", () => activatePage(btn.dataset.page));
+        });
+    }
+
+    function bindSettingsTabs() {
+        document.querySelectorAll("[data-settings-tab]").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const id = btn.dataset.settingsTab;
+                document.querySelectorAll("[data-settings-tab]").forEach((b) => {
+                    b.classList.toggle("active", b.dataset.settingsTab === id);
+                });
+                document.querySelectorAll("[data-settings-panel]").forEach((p) => {
+                    p.classList.toggle("active", p.dataset.settingsPanel === id);
+                });
+            });
         });
     }
 
@@ -345,6 +361,7 @@
             pollCommandResult(async () => {
                 await loadChannels();
                 renderReadOnlyDisplays();
+                refreshMultiPickers();
                 setButtonBusy("btnRefreshChannels", false);
             });
         } catch {
@@ -430,6 +447,78 @@
             });
         } catch {
             body.innerHTML = '<tr><td colspan="4" class="readonly-empty">Không tải được ban log.</td></tr>';
+        }
+    }
+
+    /* ── Tickets ──────────────────────────────────────────── */
+
+    async function loadTickets() {
+        const body = document.getElementById("ticketsTableBody");
+        const total = document.getElementById("ticketsTotal");
+        if (!body) return;
+        try {
+            const res = await fetch("/api/tickets/transcripts");
+            const data = await res.json();
+            const items = data.items || [];
+            if (total) {
+                total.textContent = items.length ? `${items.length} ticket đã đóng` : "";
+            }
+            body.innerHTML = "";
+            if (!items.length) {
+                body.innerHTML = '<tr><td colspan="6" class="readonly-empty">Chưa có ticket nào đã đóng.</td></tr>';
+                return;
+            }
+            items.forEach((it) => {
+                const row = document.createElement("tr");
+                const num = String(it.ticket_number ?? "?").padStart(4, "0");
+                setTextCell(row, "#" + num);
+                const user = (it.user_name || "-") + (it.user_id ? `\n${it.user_id}` : "");
+                setTextCell(row, user, "log-message");
+                setTextCell(row, it.opened_at || "-");
+                setTextCell(row, it.closed_at || "-");
+                const closedBy = (it.closed_by_name || "-") + (it.closed_by ? `\n${it.closed_by}` : "");
+                setTextCell(row, closedBy, "log-message");
+                const td = document.createElement("td");
+                if (it.filename) {
+                    const a = document.createElement("a");
+                    a.href = "/api/tickets/transcripts/" + encodeURIComponent(it.filename);
+                    a.textContent = "Tải .txt";
+                    a.className = "btn ghost";
+                    a.setAttribute("download", it.filename);
+                    td.appendChild(a);
+                } else {
+                    td.textContent = "-";
+                }
+                row.appendChild(td);
+                body.appendChild(row);
+            });
+        } catch {
+            body.innerHTML = '<tr><td colspan="6" class="readonly-empty">Không tải được transcripts.</td></tr>';
+        }
+    }
+
+    async function downloadAllTranscripts() {
+        try {
+            const res = await fetch("/api/tickets/transcripts/download_all");
+            if (!res.ok) {
+                const data = await res.json().catch(() => null);
+                const msg = (data && data.message) || `Không tải được (HTTP ${res.status}).`;
+                showToast(msg, "warning");
+                return;
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+            a.href = url;
+            a.download = `transcripts-${ts}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            showToast("Đã tải toàn bộ transcript zip.", "success");
+        } catch (err) {
+            showToast("Lỗi tải zip: " + (err.message || err), "error");
         }
     }
 
@@ -558,6 +647,119 @@
         });
     }
 
+    /* ── Multi-select picker (role/channel) ───────────────── */
+
+    const multiPickers = [];
+
+    function initMultiPickers() {
+        document.querySelectorAll("[data-picker-for]").forEach((root) => {
+            if (root.dataset.pickerInited === "true") return;
+            root.dataset.pickerInited = "true";
+
+            const hidden = root.querySelector('input[type="hidden"]');
+            const chipsBox = root.querySelector("[data-picker-chips]");
+            const input = root.querySelector("[data-picker-input]");
+            const suggest = root.querySelector("[data-picker-suggest]");
+            const prefix = root.dataset.pickerPrefix || "";
+            if (!hidden || !chipsBox || !input || !suggest) return;
+
+            function getSelected() {
+                return splitIds(hidden.value);
+            }
+
+            function setSelected(ids) {
+                hidden.value = ids.join(",");
+                render();
+            }
+
+            function render() {
+                const ids = getSelected();
+                chipsBox.innerHTML = "";
+                ids.forEach((id) => {
+                    const chip = document.createElement("span");
+                    chip.className = "multi-picker-chip";
+                    const label = document.createElement("span");
+                    label.textContent = channelMap[id] || id;
+                    chip.appendChild(label);
+                    const x = document.createElement("button");
+                    x.type = "button";
+                    x.className = "multi-picker-chip-x";
+                    x.textContent = "×";
+                    x.title = "Bỏ chọn";
+                    x.addEventListener("click", () => {
+                        setSelected(getSelected().filter((i) => i !== id));
+                    });
+                    chip.appendChild(x);
+                    chipsBox.appendChild(chip);
+                });
+            }
+
+            function refreshSuggest(query) {
+                const selected = new Set(getSelected());
+                const q = (query || "").trim().toLowerCase();
+                const matches = Object.entries(channelMap)
+                    .filter(([id, label]) => {
+                        if (selected.has(id)) return false;
+                        if (prefix && !label.startsWith(prefix)) return false;
+                        if (!q) return true;
+                        return label.toLowerCase().includes(q) || id.includes(q);
+                    })
+                    .sort((a, b) => a[1].localeCompare(b[1]))
+                    .slice(0, 60);
+
+                suggest.innerHTML = "";
+                if (!matches.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "multi-picker-suggest-empty";
+                    empty.textContent = q ? "Không có role nào khớp" : "Đã chọn hết role có sẵn";
+                    suggest.appendChild(empty);
+                } else {
+                    matches.forEach(([id, label]) => {
+                        const item = document.createElement("button");
+                        item.type = "button";
+                        item.className = "multi-picker-suggest-item";
+                        item.textContent = label;
+                        item.addEventListener("mousedown", (e) => {
+                            e.preventDefault();
+                            const ids = getSelected();
+                            if (!ids.includes(id)) ids.push(id);
+                            setSelected(ids);
+                            input.value = "";
+                            refreshSuggest("");
+                        });
+                        suggest.appendChild(item);
+                    });
+                }
+                suggest.classList.add("show");
+            }
+
+            input.addEventListener("focus", () => refreshSuggest(input.value));
+            input.addEventListener("input", () => refreshSuggest(input.value));
+            input.addEventListener("blur", () => {
+                setTimeout(() => suggest.classList.remove("show"), 150);
+            });
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") {
+                    suggest.classList.remove("show");
+                    input.blur();
+                } else if (e.key === "Backspace" && !input.value) {
+                    const ids = getSelected();
+                    if (ids.length) {
+                        ids.pop();
+                        setSelected(ids);
+                    }
+                }
+            });
+
+            multiPickers.push({ render });
+            render();
+        });
+    }
+
+    function refreshMultiPickers() {
+        multiPickers.forEach((p) => p.render());
+    }
+
     function updateHints() {
         document.querySelectorAll("[data-hint-for]").forEach((hint) => {
             const id = hint.dataset.hintFor;
@@ -586,6 +788,8 @@
             }
             renderReadOnlyDisplays();
             updateHints();
+            initMultiPickers();
+            refreshMultiPickers();
         } catch {
             showToast("Không tải được cấu hình.", "error");
         }
@@ -597,12 +801,16 @@
         const data = {};
         form.querySelectorAll("input").forEach((input) => {
             if (!input.name) return;
-            data[input.name] = input.type === "hidden" && !input.value && lastConfig[input.name]
+            const allowEmpty = input.dataset.allowEmpty === "true";
+            data[input.name] = input.type === "hidden" && !input.value && !allowEmpty && lastConfig[input.name]
                 ? lastConfig[input.name]
                 : input.value;
         });
         form.querySelectorAll("select:not([multiple])").forEach((sel) => {
             if (sel.name) data[sel.name] = sel.value;
+        });
+        form.querySelectorAll("textarea").forEach((ta) => {
+            if (ta.name) data[ta.name] = ta.value;
         });
         // Steam form (separate <form> on a different page)
         const steamForm = document.getElementById("steamForm");
@@ -649,6 +857,8 @@
                 else if (action === "reload-logs") loadLogs();
                 else if (action === "reload-banlog") loadBanLog();
                 else if (action === "download-banlog") downloadBanLog();
+                else if (action === "reload-tickets") loadTickets();
+                else if (action === "download-all-transcripts") downloadAllTranscripts();
                 else if (action === "open-env") openEnvModal();
                 else if (action === "close-modal") closeModal(btn.closest(".modal-backdrop"));
             });
@@ -723,6 +933,7 @@
 
     document.addEventListener("DOMContentLoaded", async () => {
         bindNav();
+        bindSettingsTabs();
         bindActions();
         activatePage("dashboard");
         await loadSettings();
