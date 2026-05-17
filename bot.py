@@ -2223,7 +2223,10 @@ async def handle_giveaway_enter(interaction: discord.Interaction):
         save_giveaways(state)
 
     try:
-        await interaction.message.edit(view=GiveawayEnterView(count=len(entrants)))
+        await interaction.message.edit(
+            embed=build_giveaway_embed(gw),
+            view=GiveawayEnterView(count=len(entrants)),
+        )
     except discord.HTTPException:
         pass
 
