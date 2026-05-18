@@ -53,10 +53,6 @@
                     <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M1 4.5A1.5 1.5 0 0 1 2.5 3h11A1.5 1.5 0 0 1 15 4.5v2a.5.5 0 0 1-.5.5 1 1 0 0 0 0 2 .5.5 0 0 1 .5.5v2a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 11.5v-2a.5.5 0 0 1 .5-.5 1 1 0 0 0 0-2 .5.5 0 0 1-.5-.5v-2zm5 .5a.5.5 0 0 0-.5.5v5a.5.5 0 0 0 1 0v-5A.5.5 0 0 0 6 5z"/></svg>
                     <span>Tickets</span>
                 </button>
-                <button class="nav-item" type="button" data-page="giveaway">
-                    <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5A2.5 2.5 0 0 1 5.5 0c.98 0 1.834.65 2.286 1.612C8.13.65 9.022 0 10 0a2.5 2.5 0 0 1 2.5 2.5c0 .476-.157.927-.42 1.298A2 2 0 0 1 13.5 6H13v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6h-.5a2 2 0 0 1-.58-3.202A2.49 2.49 0 0 1 3 2.5zM4.5 6v7a.5.5 0 0 0 .5.5h2.5V6h-3zm4 0v7.5H11a.5.5 0 0 0 .5-.5V6h-3zM5.5 1A1.5 1.5 0 0 0 4 2.5C4 3 4.5 3.5 5 3.5h2.5V3a2 2 0 0 0-2-2zM10 1c-1 0-2 1-2 2v.5h2.5c.5 0 1-.5 1-1A1.5 1.5 0 0 0 10 1zM2 4.5v.5a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5v-.5a.5.5 0 0 0-.5-.5h-11a.5.5 0 0 0-.5.5z"/></svg>
-                    <span>Quay thưởng</span>
-                </button>
                 <button class="nav-item" type="button" data-page="version">
                     <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM7 4a1 1 0 1 1 2 0 1 1 0 0 1-2 0zm.25 3.5h1.5v5h-1.5v-5z"/></svg>
                     <span>Version</span>
@@ -460,126 +456,6 @@
                                     </thead>
                                     <tbody id="ticketsTableBody">
                                         <tr><td colspan="6" class="readonly-empty">Chưa có ticket nào đã đóng.</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- ── Page: giveaway ──────────────────────────────── -->
-                <section id="page-giveaway" class="page">
-                    <div class="card">
-                        <div class="card-header">
-                            <h2 class="card-title">Tạo đợt quay thưởng mới</h2>
-                            <span class="card-note">Điền form, bot sẽ tự đăng tin có nút bấm</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="form-grid">
-                                <div class="form-group full">
-                                    <label for="giveawayPrize">Phần thưởng *</label>
-                                    <input type="text" id="giveawayPrize" placeholder="ví dụ: Nitro Classic 1 tháng" autocomplete="off">
-                                </div>
-                                <div class="form-group">
-                                    <label for="giveawayDuration">Sau khoảng</label>
-                                    <input type="text" id="giveawayDuration" placeholder="10s, 5m, 1h, 2d, 1w" autocomplete="off">
-                                    <div class="hint">Hoặc dùng ô bên cạnh để chọn lúc kết thúc</div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="giveawayEndsAt">Hoặc kết thúc lúc (UTC+7)</label>
-                                    <input type="datetime-local" id="giveawayEndsAt" step="60">
-                                    <div class="hint">Giờ hiện tại UTC+7: <span id="giveawayUtc7Now">-</span></div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="giveawayWinners">Số người thắng</label>
-                                    <input type="number" id="giveawayWinners" value="1" min="1" max="50">
-                                </div>
-                                <div class="form-group">
-                                    <label>Kênh đăng *</label>
-                                    <div class="multi-picker" data-picker-for="giveawayChannel" data-picker-prefix="# " data-picker-single="true">
-                                        <input type="hidden" id="giveawayChannel">
-                                        <div class="multi-picker-chips" data-picker-chips data-empty="Chưa chọn kênh"></div>
-                                        <div class="multi-picker-input-wrap">
-                                            <input type="text" class="multi-picker-input" placeholder="Gõ để tìm kênh..." data-picker-input autocomplete="off">
-                                            <div class="multi-picker-suggest" data-picker-suggest></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="giveawayRole">Vai trò bắt buộc (tùy chọn)</label>
-                                    <select id="giveawayRole"><option value="">(không yêu cầu)</option></select>
-                                </div>
-                                <div class="form-group">
-                                    <label>Ping khi đăng (tùy chọn)</label>
-                                    <div class="multi-picker" data-picker-for="giveawayPing" data-picker-prefix="🛡️" data-picker-single="true" data-picker-extras="everyone:@everyone,here:@here">
-                                        <input type="hidden" id="giveawayPing">
-                                        <div class="multi-picker-chips" data-picker-chips data-empty="Không ping"></div>
-                                        <div class="multi-picker-input-wrap">
-                                            <input type="text" class="multi-picker-input" placeholder="Gõ để tìm role, everyone, here..." data-picker-input autocomplete="off">
-                                            <div class="multi-picker-suggest" data-picker-suggest></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="form-group full">
-                                    <label for="giveawayDescription">Mô tả (hỗ trợ markdown, tùy chọn)</label>
-                                    <textarea id="giveawayDescription" rows="3" placeholder="Mô tả thêm ngữ cảnh đợt quay thưởng..."></textarea>
-                                </div>
-                            </div>
-                            <div class="split-actions" style="margin-top: 12px;">
-                                <button type="button" class="btn success" data-action="start-giveaway">🎉 Tạo đợt quay thưởng</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card" style="margin-top: 18px;">
-                        <div class="card-header">
-                            <h2 class="card-title">Đang chạy</h2>
-                            <div class="log-controls">
-                                <span class="card-note" id="giveawayActiveTotal"></span>
-                                <button class="btn secondary" type="button" data-action="reload-giveaways">Tải lại</button>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="log-table-wrap">
-                                <table class="log-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Phần thưởng</th>
-                                            <th style="width: 160px;">Kênh</th>
-                                            <th style="width: 150px;">Người mở</th>
-                                            <th style="width: 140px;">Còn lại</th>
-                                            <th style="width: 90px;">Tham gia</th>
-                                            <th style="width: 110px;">Thao tác</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="giveawayActiveBody">
-                                        <tr><td colspan="6" class="readonly-empty">Chưa có đợt nào đang chạy.</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card" style="margin-top: 18px;">
-                        <div class="card-header">
-                            <h2 class="card-title">Đã kết thúc</h2>
-                            <span class="card-note" id="giveawayEndedTotal"></span>
-                        </div>
-                        <div class="card-body">
-                            <div class="log-table-wrap">
-                                <table class="log-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Phần thưởng</th>
-                                            <th style="width: 160px;">Kênh</th>
-                                            <th style="width: 150px;">Người mở</th>
-                                            <th style="width: 150px;">Kết thúc</th>
-                                            <th>Người thắng</th>
-                                            <th style="width: 130px;">Thao tác</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="giveawayEndedBody">
-                                        <tr><td colspan="6" class="readonly-empty">Chưa có đợt nào đã kết thúc.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
