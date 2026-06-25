@@ -122,6 +122,13 @@ STEAMDB_PATCH_INTERVAL_HOURS = (
     else 0
 )
 STEAMDB_PATCH_INTERVAL_HOURS = min(max(STEAMDB_PATCH_INTERVAL_HOURS, 0), 168)
+STEAMDB_PATCH_INTERVAL_MINUTES_RAW = os.getenv('STEAMDB_PATCH_INTERVAL_MINUTES', '').strip()
+STEAMDB_PATCH_INTERVAL_MINUTES = (
+    int(STEAMDB_PATCH_INTERVAL_MINUTES_RAW)
+    if STEAMDB_PATCH_INTERVAL_MINUTES_RAW.isdigit()
+    else 0
+)
+STEAMDB_PATCH_INTERVAL_MINUTES = min(max(STEAMDB_PATCH_INTERVAL_MINUTES, 0), 1440)
 STEAMDB_PATCH_SCHEDULE_HOURS_RAW = os.getenv('STEAMDB_PATCH_SCHEDULE_HOURS', '0,6,12,18')
 STEAMDB_PATCH_SCHEDULE_HOURS = sorted({
     int(hour.strip()) for hour in STEAMDB_PATCH_SCHEDULE_HOURS_RAW.split(',')
@@ -1150,9 +1157,13 @@ async def run_steamdb_patch_check(manual=False):
 
 def seconds_until_next_steamdb_check(now=None):
     now = now or datetime.datetime.now()
-    if STEAMDB_PATCH_INTERVAL_HOURS:
-        midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    interval_seconds = 0
+    if STEAMDB_PATCH_INTERVAL_MINUTES:
+        interval_seconds = STEAMDB_PATCH_INTERVAL_MINUTES * 60
+    elif STEAMDB_PATCH_INTERVAL_HOURS:
         interval_seconds = STEAMDB_PATCH_INTERVAL_HOURS * 3600
+    if interval_seconds:
+        midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
         seconds_since_midnight = (now - midnight).total_seconds()
         next_offset = (int(seconds_since_midnight) // interval_seconds + 1) * interval_seconds
         target = midnight + datetime.timedelta(seconds=next_offset)

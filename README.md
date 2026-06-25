@@ -12,7 +12,7 @@ Vietnamese setup guide: [README_VI.md](README_VI.md)
 - Ban audit log: every ban (including manual admin bans) is logged into `BAN_LOG_THREAD_ID` with audit info.
 - Auto-delete embeds by configured target user, keywords, category, and channel filters.
 - Auto-assign a default role to new members joining the server (skipped if they already have it).
-- Steam patch/update watcher using Steam Events with interval or scheduled hours.
+- Steam patch/update watcher using Steam Events with interval (minutes or hours) or scheduled hours.
 - Manage watched Steam games with `/game add`, `/game remove`, `/game list`, and `/game help`.
 
 ## Quick Start
@@ -97,6 +97,7 @@ STEAMDB_PATCH_MENTION_USER_ID=''
 STEAMDB_PATCH_MENTION_USER_IDS=''
 STEAMDB_APP_IDS=''
 STEAMDB_PATCH_INTERVAL_HOURS='1'
+STEAMDB_PATCH_INTERVAL_MINUTES=''
 STEAMDB_PATCH_SCHEDULE_HOURS='0,6,12,18'
 STEAMDB_PATCH_LIMIT='25'
 STEAM_WATCHER_MAX_AGE_DAYS='7'
