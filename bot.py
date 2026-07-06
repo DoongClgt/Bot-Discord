@@ -148,7 +148,17 @@ STEAM_EVENT_TYPE_LABELS = {
     12: "SMALL UPDATE / PATCH NOTES",
     13: "REGULAR UPDATE",
     14: "MAJOR UPDATE",
+    28: "NEWS / ANNOUNCEMENT",
 }
+STEAM_PATCH_EVENT_TYPES = {12, 13, 14}
+STEAM_NEWS_PATCH_KEYWORDS = (
+    "patch",
+    "patch notes",
+    "update",
+    "hotfix",
+    "changelog",
+    "version",
+)
 
 def safe_http_url(url, fallback=None):
     value = str(url or '').strip()
@@ -191,7 +201,24 @@ def first_localized_text(values):
     return ""
 
 def steam_event_type_filter():
-    return "12,13,14"
+    return "12,13,14,28"
+
+def is_steam_patch_event(event, title, summary):
+    event_type = event.get("event_type")
+    if event_type in STEAM_PATCH_EVENT_TYPES:
+        return True
+    if event_type != 28:
+        return False
+
+    announcement = event.get("announcement_body") if isinstance(event.get("announcement_body"), dict) else {}
+    text = " ".join(
+        str(value or "")
+        for value in (
+            title,
+            announcement.get("headline"),
+        )
+    ).lower()
+    return any(keyword in text for keyword in STEAM_NEWS_PATCH_KEYWORDS)
 
 def steam_event_url(app_id, event_gid):
     return f"https://store.steampowered.com/news/app/{app_id}/view/{event_gid}"
@@ -219,6 +246,9 @@ def steam_event_to_patch(app_id, event):
         summary = ""
     if not summary:
         summary = strip_steam_bbcode(announcement.get("body"))[:900]
+
+    if not is_steam_patch_event(event, title, summary):
+        return None
 
     build_id = event.get("build_id")
     return {
