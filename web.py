@@ -334,9 +334,9 @@ def metrics():
 
 @app.route('/api/ban_log', methods=['GET'])
 def ban_log_list():
-    limit_raw = request.args.get('limit', '200')
-    limit = int(limit_raw) if str(limit_raw).isdigit() else 200
-    limit = min(max(limit, 1), 1000)
+    limit_raw = request.args.get('limit', '5000')
+    limit = int(limit_raw) if str(limit_raw).isdigit() else 5000
+    limit = min(max(limit, 1), 20000)
     if not os.path.exists(BAN_LOG_FILE):
         return jsonify({"count": 0, "items": []})
     try:

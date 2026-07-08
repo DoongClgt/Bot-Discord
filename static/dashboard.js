@@ -416,13 +416,17 @@
         const total = document.getElementById("banLogTotal");
         if (!body) return;
         try {
-            const res = await fetch("/api/ban_log?limit=200");
+            const res = await fetch("/api/ban_log?limit=5000");
             const data = await res.json();
             const items = data.items || [];
             if (total) {
-                total.textContent = data.total_lines
-                    ? `${data.total_lines} ban tổng, hiển thị ${items.length} gần nhất`
-                    : "";
+                if (!data.total_lines) {
+                    total.textContent = "";
+                } else if (items.length >= data.total_lines) {
+                    total.textContent = `${data.total_lines} ban tổng, hiển thị tất cả`;
+                } else {
+                    total.textContent = `${data.total_lines} ban tổng, hiển thị ${items.length} gần nhất`;
+                }
             }
             body.innerHTML = "";
             if (!items.length) {

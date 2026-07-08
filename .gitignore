@@ -13,6 +13,8 @@ data/ipc_response.txt
 data/tickets_counter.txt
 data/transcripts/
 data/*.tmp
+data/*.bak
+data/*.bak-*
 
 scripts/
 .claude/
