@@ -1,0 +1,20 @@
+[Unit]
+Description=Bot-Discord bot (spam trap, steam watcher, tickets)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__RUN_USER__
+WorkingDirectory=__PROJECT_DIR__
+ExecStart=__PROJECT_DIR__/.venv/bin/python __PROJECT_DIR__/bot.py
+Restart=always
+RestartSec=5
+# Chi 1 instance duy nhat do systemd quan ly -> khong con ban trung do chay 2 tien trinh
+KillMode=control-group
+# StandardOutput append can systemd >= 240 (Ubuntu 20.04+). Neu cu hon, bo 2 dong duoi va xem log bang journalctl.
+StandardOutput=append:__PROJECT_DIR__/data/bot_vps.log
+StandardError=append:__PROJECT_DIR__/data/bot_vps.log
+
+[Install]
+WantedBy=multi-user.target

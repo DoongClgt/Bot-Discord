@@ -354,6 +354,19 @@
         }
     }
 
+    async function sendRecountBanCounter() {
+        setButtonBusy("btnRecountBan", true, "Đang tính...");
+        try {
+            await postCommand("recount_ban_counter");
+            pollCommandResult(async () => {
+                await loadBanLog();
+                setButtonBusy("btnRecountBan", false);
+            });
+        } catch {
+            setButtonBusy("btnRecountBan", false);
+        }
+    }
+
     async function sendRefreshChannels() {
         setButtonBusy("btnRefreshChannels", true, "Đang quét...");
         try {
@@ -891,6 +904,7 @@
                 else if (action === "reload-version") loadVersion();
                 else if (action === "reload-logs") loadLogs();
                 else if (action === "reload-banlog") loadBanLog();
+                else if (action === "recount-ban-counter") sendRecountBanCounter();
                 else if (action === "download-banlog") downloadBanLog();
                 else if (action === "reload-tickets") loadTickets();
                 else if (action === "download-all-transcripts") downloadAllTranscripts();

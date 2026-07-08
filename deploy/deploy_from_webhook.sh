@@ -104,19 +104,30 @@ fi
 log "Compile bot.py core.py moderation.py steam.py tickets.py web.py"
 python3 -m py_compile bot.py core.py moderation.py steam.py tickets.py web.py
 
-log "Stop existing bot/dashboard"
-for pidfile in data/bot.pid data/web.pid; do
-  if [ -f "$pidfile" ]; then
-    pid="$(cat "$pidfile" 2>/dev/null || true)"
-    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-      kill "$pid" || true
+DASHBOARD_SYSTEMD_RESTART=0
+if systemctl cat bot-discord-bot.service >/dev/null 2>&1 && systemctl cat bot-discord-dashboard.service >/dev/null 2>&1; then
+  # Restart bot ngay (script deploy khong nam trong cgroup cua bot nen an toan).
+  # Dashboard de restart o CUOI bang --no-block: neu deploy duoc kich hoat qua
+  # /api/deploy thi no la con cua dashboard service; restart dashboard inline se
+  # tu giet script deploy giua chung.
+  log "Restart bot via systemd"
+  systemctl restart bot-discord-bot.service
+  DASHBOARD_SYSTEMD_RESTART=1
+else
+  log "Stop existing bot/dashboard"
+  for pidfile in data/bot.pid data/web.pid; do
+    if [ -f "$pidfile" ]; then
+      pid="$(cat "$pidfile" 2>/dev/null || true)"
+      if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        kill "$pid" || true
+      fi
     fi
-  fi
-done
-sleep 3
+  done
+  sleep 3
 
-log "Start bot/dashboard"
-bash deploy/start_vps.sh >> "$LOG_FILE" 2>&1
+  log "Start bot/dashboard"
+  bash deploy/start_vps.sh >> "$LOG_FILE" 2>&1
+fi
 sleep 5
 
 status_json="$(curl -fsS http://127.0.0.1:5000/api/status || true)"
@@ -125,3 +136,9 @@ log "Status: $status_json"
 log "Version: $version_json"
 notify_deploy_success "$status_json" "$version_json"
 log "Done deploy at $(date -Is)"
+
+# Restart dashboard sau cung, tach roi (--no-block) de khong tu giet script nay.
+if [ "$DASHBOARD_SYSTEMD_RESTART" = "1" ]; then
+  log "Restart dashboard via systemd (--no-block)"
+  systemctl restart --no-block bot-discord-dashboard.service || true
+fi

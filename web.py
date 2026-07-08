@@ -31,6 +31,7 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 # File name of the bot to search for
 BOT_FILE = "bot.py"
 BOT_PATH = os.path.join(APP_ROOT, BOT_FILE)
+BOT_SERVICE = os.getenv("BOT_SYSTEMD_SERVICE", "bot-discord-bot.service")
 CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == "nt" else 0
 _bot_status_cache = {"checked_at": 0, "pid": None}
 _metrics_proc_cache = {"pid": None, "proc": None}
@@ -92,13 +93,44 @@ def is_bot_running(force=False):
     _bot_status_cache["pid"] = found_pid
     return found_pid
 
+def bot_service_exists():
+    if os.name == "nt":
+        return False
+    try:
+        result = subprocess.run(
+            ["systemctl", "cat", BOT_SERVICE],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=3,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+def run_bot_service(action):
+    subprocess.run(
+        ["systemctl", action, BOT_SERVICE],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        timeout=20,
+    )
+    _bot_status_cache["checked_at"] = 0
+    _bot_status_cache["pid"] = None
+
 def start_bot_process():
+    if bot_service_exists():
+        run_bot_service("start")
+        return None
     proc = subprocess.Popen([sys.executable, BOT_PATH], cwd=os.path.dirname(BOT_PATH), creationflags=CREATE_NO_WINDOW)
     _bot_status_cache["checked_at"] = time.monotonic()
     _bot_status_cache["pid"] = proc.pid
     return proc
 
 def stop_bot_process(pid):
+    if bot_service_exists():
+        run_bot_service("stop")
+        return
     proc = psutil.Process(pid)
     proc.terminate()
     try:

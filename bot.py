@@ -85,6 +85,12 @@ async def check_ipc_commands():
                 log_event("ipc", f"Dashboard refresh_channels: da quet {total} muc.")
                 atomic_write_text(IPC_RESPONSE_FILE, f"Da quet lai {total} muc kenh/role/user/thread.")
 
+            elif cmd == "recount_ban_counter":
+                print("Nhan lenh tinh lai bo dem ban tu File Queue...")
+                total = await moderation.recount_and_sync_ban_counter()
+                log_event("ipc", f"Dashboard recount_ban_counter: ban_count = {total}.")
+                atomic_write_text(IPC_RESPONSE_FILE, f"Da cap nhat 'So mit to bit da ban' = {total}.")
+
     except Exception as e:
         print(f"Lỗi đọc IPC: {e}")
 

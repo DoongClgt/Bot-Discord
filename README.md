@@ -50,6 +50,19 @@ chmod +x deploy/start_vps.sh
 ./deploy/start_vps.sh
 ```
 
+For production, prefer systemd (ensures a single bot instance — two concurrent bot
+processes would produce duplicate bans/log entries, since the idempotency guard is
+per-process):
+
+```bash
+sudo bash deploy/install_systemd.sh          # or: sudo RUN_USER=youruser bash deploy/install_systemd.sh
+```
+
+This installs `bot-discord-bot.service` + `bot-discord-dashboard.service` and a polkit
+rule so the dashboard/deploy can control them without sudo. Once on systemd, don't run
+`start_vps.sh` (it would spawn duplicates); `deploy_from_webhook.sh` auto-detects the
+services and restarts via systemd.
+
 Default dashboard URL:
 
 ```text
@@ -122,6 +135,7 @@ Slash commands:
 /refreshchannels
 /check [game]
 /dlt [limit]
+/synccounter
 /game list
 /game add <app_id>
 /game remove <game>
@@ -129,7 +143,9 @@ Slash commands:
 /ticket_panel
 ```
 
-Text command aliases also available: `/online`, `/status`, `/patchcheck`, `/sdbcheckrecent`, `/patchrecent`, `/rescanchannels`.
+`/synccounter` recomputes the spam-trap ban counter from `data/ban_log.jsonl` and updates the counter message (also available as the "Cập nhật số đếm ban" dashboard button / IPC `recount_ban_counter`).
+
+Text command aliases also available: `/online`, `/status`, `/patchcheck`, `/sdbcheckrecent`, `/patchrecent`, `/rescanchannels`, `/recount`, `/recountban`.
 
 ## Auto Role For New Members
 

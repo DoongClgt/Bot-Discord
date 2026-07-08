@@ -102,6 +102,25 @@ Dashboard mặc định:
 http://127.0.0.1:5000
 ```
 
+### Chạy bằng systemd (khuyến nghị cho production)
+
+`start_vps.sh` chạy bằng `nohup` không chống được việc lỡ khởi động 2 lần → **2 tiến trình bot chạy song song sẽ ban/ghi log trùng** (idempotency guard chỉ chống trùng trong 1 tiến trình). Dùng systemd để đảm bảo **chỉ 1 instance**:
+
+```bash
+sudo bash deploy/install_systemd.sh
+# hoặc chỉ định user chạy service:
+sudo RUN_USER=youruser bash deploy/install_systemd.sh
+```
+
+Script tự dò `PROJECT_DIR`/user, kill tiến trình pid cũ, ghi 2 unit `bot-discord-bot.service` + `bot-discord-dashboard.service`, cài polkit rule (để dashboard/deploy điều khiển service không cần sudo), rồi `enable --now`. Sau đó:
+
+```bash
+sudo systemctl status bot-discord-bot bot-discord-dashboard
+journalctl -u bot-discord-bot -f
+```
+
+Khi đã dùng systemd thì **không chạy `start_vps.sh` nữa** (sẽ tạo tiến trình trùng). `deploy_from_webhook.sh` tự nhận biết: nếu có service systemd thì restart qua systemd, không thì fallback cách cũ.
+
 ## Cloudflare Tunnel
 
 Nếu dùng Cloudflare Tunnel, giữ dashboard chạy local trên VPS:
@@ -131,6 +150,7 @@ Text command:
 /steamdbcheck / /patchcheck
 /check [index|SteamAppID|tên game]
 /dlt [limit]
+/synccounter / /recount / /recountban
 /game list
 /game add <SteamAppID>
 /game remove <index|SteamAppID|tên game>
@@ -146,6 +166,7 @@ Slash command:
 /refreshchannels
 /check [game]
 /dlt [limit]
+/synccounter
 /game list
 /game add <app_id>
 /game remove <game>
@@ -178,6 +199,7 @@ Cách hoạt động:
 - Người có role trong `SPAM_TRAP_EXCLUDED_ROLE_IDS` được miễn trừ: tin nhắn ở kênh bẫy vẫn bị xoá nhưng **không** bị ban.
 - Log ban gửi vào thread `BAN_LOG_THREAD_ID`. Nếu không gửi được, fallback sang `GENERAL_LOG_CHANNEL_ID`.
 - Mỗi kênh bẫy có 1 message bộ đếm "Số mít tơ bít đã ban: N" tự edit khi có ban mới.
+- Nếu số đếm bị lệch (vd state bị reset), dùng lệnh `synccounter` (prefix hoặc slash, cần quyền `Manage Messages`) hoặc nút **"Cập nhật số đếm ban"** trên dashboard để tính lại từ `ban_log.jsonl` và cập nhật message.
 - Có chống trùng (idempotency) theo `(guild_id, user_id)` để tránh ghi 2 dòng log nếu gateway gửi MESSAGE_CREATE 2 lần cho cùng 1 tin.
 
 ## Ban Log Tự Động

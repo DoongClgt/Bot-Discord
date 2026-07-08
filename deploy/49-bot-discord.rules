@@ -1,0 +1,14 @@
+// Cho phep user __RUN_USER__ start/stop/restart 2 service cua Bot-Discord ma
+// KHONG can sudo/mat khau. Nho vay nut Bat/Tat bot tren dashboard (web.py chay
+// bang user nay) va deploy_from_webhook.sh dieu khien duoc service.
+// Yeu cau polkit >= 0.106 (Ubuntu 18.04+, Debian 10+).
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        subject.user == "__RUN_USER__") {
+        var unit = action.lookup("unit");
+        if (unit == "bot-discord-bot.service" ||
+            unit == "bot-discord-dashboard.service") {
+            return polkit.Result.YES;
+        }
+    }
+});

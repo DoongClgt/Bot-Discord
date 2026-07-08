@@ -230,6 +230,51 @@ async def sync_spam_trap_ban_counter(guild: discord.Guild, increment: bool = Fal
 async def update_spam_trap_ban_counter(guild: discord.Guild):
     await sync_spam_trap_ban_counter(guild, increment=True)
 
+def count_ban_log_entries():
+    """Đếm số ban thật (unique) trong ban_log.jsonl, bỏ qua dòng trùng (chỉ khác 'time')."""
+    if not os.path.exists(BAN_LOG_FILE):
+        return 0
+    seen = set()
+    count = 0
+    try:
+        with open(BAN_LOG_FILE, 'r', encoding='utf-8') as f:
+            for line in f:
+                raw = line.strip()
+                if not raw:
+                    continue
+                try:
+                    rec = _json.loads(raw)
+                except Exception:
+                    count += 1
+                    continue
+                key = _json.dumps(
+                    {k: v for k, v in rec.items() if k != 'time'},
+                    sort_keys=True, ensure_ascii=False,
+                )
+                if key in seen:
+                    continue
+                seen.add(key)
+                count += 1
+    except OSError:
+        return 0
+    return count
+
+async def recount_and_sync_ban_counter():
+    """Đặt ban_count = số ban unique trong ban_log.jsonl rồi sync message ở mọi guild."""
+    total = count_ban_log_entries()
+    state = load_spam_trap_state()
+    state["ban_count"] = total
+    save_spam_trap_state(state)
+    synced = 0
+    for guild in bot.guilds:
+        try:
+            await sync_spam_trap_ban_counter(guild, increment=False)
+            synced += 1
+        except Exception as e:
+            log_event("spam_trap", f"Loi sync ban counter guild {guild.id}: {e}", "warn")
+    log_event("spam_trap", f"Recount ban_count = {total} tu ban_log, sync {synced} guild.")
+    return total
+
 # In-memory chống xử lý ban trùng cho cùng (guild, user) khi gateway gửi MESSAGE_CREATE 2 lần
 _spam_trap_banning: set = set()
 
@@ -358,6 +403,22 @@ async def slash_delete_target_keyword_messages(interaction: discord.Interaction,
     await interaction.response.defer(thinking=True, ephemeral=True)
     result = await delete_target_keyword_messages_in_categories(interaction.guild, limit)
     await interaction.followup.send(result, ephemeral=True)
+
+@bot.command(name='synccounter', aliases=['recount', 'recountban'])
+@commands.has_permissions(manage_messages=True)
+async def sync_ban_counter_command(ctx):
+    total = await recount_and_sync_ban_counter()
+    await ctx.send(f"Da cap nhat 'So mit to bit da ban' = {total} (tinh tu ban_log).")
+
+@bot.tree.command(name='synccounter', description='Tinh lai so ban tu ban_log va cap nhat message bo dem spam trap')
+@app_commands.default_permissions(manage_messages=True)
+@app_commands.checks.has_permissions(manage_messages=True)
+async def slash_sync_ban_counter(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    total = await recount_and_sync_ban_counter()
+    await interaction.followup.send(
+        f"Da cap nhat 'So mit to bit da ban' = {total} (tinh tu ban_log).", ephemeral=True
+    )
 
 # Sự kiện khi có thành viên mới tham gia server — tự động cấp role mặc định
 @bot.event
