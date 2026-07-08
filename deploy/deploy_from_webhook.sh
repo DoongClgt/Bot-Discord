@@ -101,8 +101,8 @@ else
   exit 1
 fi
 
-log "Compile bot.py web.py"
-python3 -m py_compile bot.py web.py
+log "Compile bot.py core.py moderation.py steam.py tickets.py web.py"
+python3 -m py_compile bot.py core.py moderation.py steam.py tickets.py web.py
 
 log "Stop existing bot/dashboard"
 for pidfile in data/bot.pid data/web.pid; do

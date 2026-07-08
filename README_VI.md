@@ -263,7 +263,7 @@ Ghi chú:
 ## Kiểm Tra
 
 ```bash
-python3 -m py_compile bot.py web.py
+python3 -m py_compile bot.py core.py moderation.py steam.py tickets.py web.py
 ```
 
 Nếu có Node.js, có thể kiểm tra JavaScript dashboard:

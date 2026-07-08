@@ -190,7 +190,7 @@ http://127.0.0.1:5000
 ## Verify
 
 ```bash
-python3 -m py_compile bot.py web.py
+python3 -m py_compile bot.py core.py moderation.py steam.py tickets.py web.py
 ```
 
 ```bash
