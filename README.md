@@ -71,6 +71,8 @@ EXCLUDED_CHANNEL_IDS=''
 SPAM_TRAP_CHANNEL_ID=''
 SPAM_TRAP_CHANNEL_ID_2=''
 SPAM_TRAP_EXCLUDED_ROLE_IDS=''
+# Seconds of the banned user's messages Discord deletes across all channels (default 3600 = 1 hour, max 604800).
+SPAM_TRAP_BAN_DELETE_SECONDS='3600'
 
 # Log channels
 BAN_LOG_THREAD_ID=''

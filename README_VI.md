@@ -45,6 +45,7 @@ EXCLUDED_CHANNEL_IDS=''
 SPAM_TRAP_CHANNEL_ID=''
 SPAM_TRAP_CHANNEL_ID_2=''
 SPAM_TRAP_EXCLUDED_ROLE_IDS=''
+SPAM_TRAP_BAN_DELETE_SECONDS='3600'
 
 # Log channels
 BAN_LOG_THREAD_ID=''
@@ -166,12 +167,14 @@ Biến `.env` quan trọng:
 SPAM_TRAP_CHANNEL_ID=''
 SPAM_TRAP_CHANNEL_ID_2=''
 SPAM_TRAP_EXCLUDED_ROLE_IDS=''
+SPAM_TRAP_BAN_DELETE_SECONDS='3600'
 BAN_LOG_THREAD_ID=''
 ```
 
 Cách hoạt động:
 
 - Ai nhắn vào kênh bẫy là **bị ban luôn** (kèm xoá tin nhắn). Không còn role/kênh nghi phạm.
+- Khi ban, Discord xoá luôn tin nhắn của người đó **ở mọi kênh** trong khoảng `SPAM_TRAP_BAN_DELETE_SECONDS` giây gần nhất (mặc định 3600 = 1 tiếng, tối đa 604800). Nhờ vậy tin cũ ở các kênh ngoài cũng bị dọn, không chỉ tin vừa gửi.
 - Người có role trong `SPAM_TRAP_EXCLUDED_ROLE_IDS` được miễn trừ: tin nhắn ở kênh bẫy vẫn bị xoá nhưng **không** bị ban.
 - Log ban gửi vào thread `BAN_LOG_THREAD_ID`. Nếu không gửi được, fallback sang `GENERAL_LOG_CHANNEL_ID`.
 - Mỗi kênh bẫy có 1 message bộ đếm "Số mít tơ bít đã ban: N" tự edit khi có ban mới.

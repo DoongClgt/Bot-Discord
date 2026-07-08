@@ -49,6 +49,19 @@ SPAM_TRAP_CHANNEL_ID_2 = int(SPAM_TRAP_CHANNEL_ID_2_STR) if SPAM_TRAP_CHANNEL_ID
 SPAM_TRAP_CHANNEL_IDS = {channel_id for channel_id in (SPAM_TRAP_CHANNEL_ID, SPAM_TRAP_CHANNEL_ID_2) if channel_id}
 SPAM_TRAP_EXCLUDED_ROLE_IDS = parse_int_set(os.getenv('SPAM_TRAP_EXCLUDED_ROLE_IDS', ''))
 
+# Số giây tin nhắn của người bị spam-trap ban sẽ bị Discord xóa (mọi kênh).
+# Mặc định 1 tiếng (3600) để xóa cả tin cũ ở các kênh ngoài; tối đa Discord cho phép là 604800.
+def _parse_delete_seconds(raw_value, default):
+    try:
+        seconds = int(str(raw_value).strip())
+    except (TypeError, ValueError):
+        return default
+    return max(0, min(seconds, 604800))
+
+SPAM_TRAP_BAN_DELETE_SECONDS = _parse_delete_seconds(
+    os.getenv('SPAM_TRAP_BAN_DELETE_SECONDS', ''), 3600
+)
+
 BAN_LOG_THREAD_ID_STR = os.getenv('BAN_LOG_THREAD_ID', '')
 BAN_LOG_THREAD_ID = int(BAN_LOG_THREAD_ID_STR) if BAN_LOG_THREAD_ID_STR.isdigit() else 0
 
@@ -508,7 +521,7 @@ async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audi
         await guild.ban(
             author,
             reason=audit_reason,
-            delete_message_seconds=60,
+            delete_message_seconds=SPAM_TRAP_BAN_DELETE_SECONDS,
         )
         await update_spam_trap_ban_counter(guild)
         log_event("spam_trap_ban", f"Da ban {author.id}: {reason_text}")
