@@ -202,10 +202,16 @@
                                 <div class="card-body">
                                     <div class="form-grid">
                                         <div class="form-group full">
-                                            <label>Kênh bẫy spam</label>
-                                            <input type="hidden" id="SPAM_TRAP_CHANNEL_ID" name="SPAM_TRAP_CHANNEL_ID">
-                                            <input type="hidden" id="SPAM_TRAP_CHANNEL_ID_2" name="SPAM_TRAP_CHANNEL_ID_2">
-                                            <div class="readonly-list" data-display-for-many="SPAM_TRAP_CHANNEL_ID,SPAM_TRAP_CHANNEL_ID_2"></div>
+                                            <label>Kênh bẫy spam (chọn nhiều)</label>
+                                            <div class="multi-picker" data-picker-for="SPAM_TRAP_CHANNEL_IDS" data-picker-prefix="#">
+                                                <input type="hidden" id="SPAM_TRAP_CHANNEL_IDS" name="SPAM_TRAP_CHANNEL_IDS" data-allow-empty="true">
+                                                <div class="multi-picker-chips" data-picker-chips data-empty="Chưa chọn kênh bẫy nào"></div>
+                                                <div class="multi-picker-input-wrap">
+                                                    <input type="text" class="multi-picker-input" placeholder="Gõ để tìm kênh..." data-picker-input autocomplete="off">
+                                                    <div class="multi-picker-suggest" data-picker-suggest></div>
+                                                </div>
+                                            </div>
+                                            <div class="hint">Ai chat vào các kênh này sẽ bị ban ngay. Bot gửi/cập nhật tin bộ đếm ban ở mỗi kênh.</div>
                                         </div>
                                         <div class="form-group full">
                                             <label for="SPAM_TRAP_EXCLUDED_ROLE_IDS">Role miễn bẫy</label>
@@ -418,12 +424,13 @@
                                         <tr>
                                             <th style="width: 170px;">Thời gian</th>
                                             <th style="width: 220px;">User</th>
+                                            <th style="width: 180px;">Nguồn</th>
                                             <th style="width: 200px;">Kênh trigger</th>
                                             <th>Lý do</th>
                                         </tr>
                                     </thead>
                                     <tbody id="banLogTableBody">
-                                        <tr><td colspan="4" class="readonly-empty">Chưa có ban nào.</td></tr>
+                                        <tr><td colspan="5" class="readonly-empty">Chưa có ban nào.</td></tr>
                                     </tbody>
                                 </table>
                             </div>

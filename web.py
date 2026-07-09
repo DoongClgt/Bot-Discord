@@ -221,6 +221,10 @@ def get_config():
 @app.route('/api/config', methods=['POST'])
 def save_config():
     new_config = request.json or {}
+    if 'SPAM_TRAP_CHANNEL_IDS' in new_config:
+        # Dashboard đã gộp kênh bẫy vào một biến; xoá 2 biến cũ để bỏ chọn kênh có tác dụng.
+        new_config.setdefault('SPAM_TRAP_CHANNEL_ID', '')
+        new_config.setdefault('SPAM_TRAP_CHANNEL_ID_2', '')
     for key, value in new_config.items():
         dotenv.set_key(ENV_FILE, key, str(value))
     

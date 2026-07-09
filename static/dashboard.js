@@ -36,7 +36,7 @@
         settings: { title: "Cấu hình", subtitle: "Token, keywords, kênh áp dụng" },
         steam: { title: "Steam Watcher", subtitle: "Theo dõi patch trên Steam" },
         logs: { title: "Log gần đây", subtitle: "Sự kiện mới nhất từ bot" },
-        banlog: { title: "Ban log", subtitle: "Lịch sử ban từ spam trap, có thể tải về" },
+        banlog: { title: "Ban log", subtitle: "Lịch sử ban từ spam trap và admin, có thể tải về" },
         tickets: { title: "Tickets", subtitle: "Transcript ticket đã đóng, có thể tải về" },
         version: { title: "Version", subtitle: "Thông tin commit và môi trường" },
     };
@@ -443,7 +443,7 @@
             }
             body.innerHTML = "";
             if (!items.length) {
-                body.innerHTML = '<tr><td colspan="4" class="readonly-empty">Chưa có ban nào.</td></tr>';
+                body.innerHTML = '<tr><td colspan="5" class="readonly-empty">Chưa có ban nào.</td></tr>';
                 return;
             }
             items.forEach((it) => {
@@ -453,6 +453,11 @@
                     ? `${it.username}\n${it.user_id || ""}`
                     : it.user_id || "-";
                 setTextCell(row, userText, "log-message");
+                // Bản ghi cũ không có 'source' đều là ban spam trap.
+                const sourceText = it.source === "admin"
+                    ? "Admin\n" + (it.banned_by_name || "không rõ ai ban")
+                    : "Spam trap";
+                setTextCell(row, sourceText, "log-message");
                 const channelText = it.channel_name
                     ? `#${it.channel_name}\n${it.channel_id || ""}`
                     : it.channel_id || "-";
@@ -463,7 +468,7 @@
                 body.appendChild(row);
             });
         } catch {
-            body.innerHTML = '<tr><td colspan="4" class="readonly-empty">Không tải được ban log.</td></tr>';
+            body.innerHTML = '<tr><td colspan="5" class="readonly-empty">Không tải được ban log.</td></tr>';
         }
     }
 
@@ -600,16 +605,6 @@
             const fieldId = box.dataset.displayFor;
             const field = document.getElementById(fieldId);
             const ids = splitIds(field ? field.value : "");
-            renderChips(box, ids);
-        });
-        document.querySelectorAll("[data-display-for-many]").forEach((box) => {
-            const fieldIds = box.dataset.displayForMany.split(",").map((id) => id.trim()).filter(Boolean);
-            const ids = fieldIds
-                .flatMap((fid) => {
-                    const f = document.getElementById(fid);
-                    return splitIds(f ? f.value : "");
-                })
-                .filter((id, i, arr) => id && arr.indexOf(id) === i);
             renderChips(box, ids);
         });
         renderSteamAppDisplays();
@@ -823,6 +818,16 @@
         });
     }
 
+    // .env cũ dùng SPAM_TRAP_CHANNEL_ID + _2; gộp vào ô picker mới nếu ô mới còn trống.
+    function migrateLegacySpamTrapChannels(config) {
+        const field = document.getElementById("SPAM_TRAP_CHANNEL_IDS");
+        if (!field || field.value.trim()) return;
+        const ids = ["SPAM_TRAP_CHANNEL_ID", "SPAM_TRAP_CHANNEL_ID_2"]
+            .flatMap((key) => splitIds(config[key]))
+            .filter((id, i, arr) => arr.indexOf(id) === i);
+        field.value = ids.join(",");
+    }
+
     async function loadSettings() {
         await loadChannels();
         try {
@@ -834,6 +839,7 @@
                 if (!el) continue;
                 el.value = value || "";
             }
+            migrateLegacySpamTrapChannels(config);
             renderReadOnlyDisplays();
             updateHints();
             initMultiPickers();

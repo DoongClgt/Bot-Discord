@@ -38,11 +38,12 @@ TARGET_CATEGORY_IDS = [int(cat_id.strip()) for cat_id in category_ids_str.split(
 excluded_channel_ids_str = os.getenv('EXCLUDED_CHANNEL_IDS', '')
 EXCLUDED_CHANNEL_IDS = [int(ch_id.strip()) for ch_id in excluded_channel_ids_str.split(',')] if excluded_channel_ids_str else []
 
-SPAM_TRAP_CHANNEL_ID_STR = os.getenv('SPAM_TRAP_CHANNEL_ID', '')
-SPAM_TRAP_CHANNEL_ID = int(SPAM_TRAP_CHANNEL_ID_STR) if SPAM_TRAP_CHANNEL_ID_STR.isdigit() else 0
-SPAM_TRAP_CHANNEL_ID_2_STR = os.getenv('SPAM_TRAP_CHANNEL_ID_2', '')
-SPAM_TRAP_CHANNEL_ID_2 = int(SPAM_TRAP_CHANNEL_ID_2_STR) if SPAM_TRAP_CHANNEL_ID_2_STR.isdigit() else 0
-SPAM_TRAP_CHANNEL_IDS = {channel_id for channel_id in (SPAM_TRAP_CHANNEL_ID, SPAM_TRAP_CHANNEL_ID_2) if channel_id}
+# Kênh bẫy spam: SPAM_TRAP_CHANNEL_IDS là danh sách ID cách nhau bằng dấu phẩy (số kênh tuỳ ý).
+# SPAM_TRAP_CHANNEL_ID / SPAM_TRAP_CHANNEL_ID_2 là biến cũ, vẫn đọc để .env cũ không mất cấu hình.
+SPAM_TRAP_CHANNEL_IDS = parse_int_set(os.getenv('SPAM_TRAP_CHANNEL_IDS', ''))
+SPAM_TRAP_CHANNEL_IDS |= parse_int_set(os.getenv('SPAM_TRAP_CHANNEL_ID', ''))
+SPAM_TRAP_CHANNEL_IDS |= parse_int_set(os.getenv('SPAM_TRAP_CHANNEL_ID_2', ''))
+SPAM_TRAP_CHANNEL_IDS.discard(0)
 SPAM_TRAP_EXCLUDED_ROLE_IDS = parse_int_set(os.getenv('SPAM_TRAP_EXCLUDED_ROLE_IDS', ''))
 
 # Số giây tin nhắn của người bị spam-trap ban sẽ bị Discord xóa (mọi kênh).
@@ -231,7 +232,12 @@ async def update_spam_trap_ban_counter(guild: discord.Guild):
     await sync_spam_trap_ban_counter(guild, increment=True)
 
 def count_ban_log_entries():
-    """Đếm số ban thật (unique) trong ban_log.jsonl, bỏ qua dòng trùng (chỉ khác 'time')."""
+    """Đếm số ban spam trap (unique) trong ban_log.jsonl, bỏ qua dòng trùng (chỉ khác 'time').
+
+    Ban do admin tự tay thực hiện (source='admin') KHÔNG được tính: bộ đếm trong kênh bẫy
+    là 'số mít tơ bít đã ban', không phải tổng số ban của server. Bản ghi cũ không có
+    'source' đều là ban spam trap.
+    """
     if not os.path.exists(BAN_LOG_FILE):
         return 0
     seen = set()
@@ -246,6 +252,8 @@ def count_ban_log_entries():
                     rec = _json.loads(raw)
                 except Exception:
                     count += 1
+                    continue
+                if rec.get('source') == 'admin':
                     continue
                 key = _json.dumps(
                     {k: v for k, v in rec.items() if k != 'time'},
@@ -317,6 +325,7 @@ async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audi
         await update_spam_trap_ban_counter(guild)
         log_event("spam_trap_ban", f"Da ban {author.id}: {reason_text}")
         append_ban_log({
+            "source": "spam_trap",
             "guild_id": str(guild.id),
             "guild_name": guild.name,
             "user_id": str(author.id),
@@ -443,14 +452,67 @@ async def on_member_join(member: discord.Member):
     except discord.HTTPException as e:
         log_event("auto_role", f"Loi khi cap role {role.name} cho {member.id}: {e}", "error")
 
+async def find_ban_audit_entry(guild, user):
+    """Tìm entry audit log ứng với ban của user, trả về None nếu không tra được.
+
+    Quét vài entry gần nhất thay vì chỉ 1: khi ban nhiều người liên tiếp
+    (vd spam trap), entry mới nhất có thể không phải user này.
+    """
+    try:
+        async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.ban):
+            if entry.target and entry.target.id == user.id:
+                return entry
+    except Exception:
+        pass
+    return None
+
+def append_admin_ban_log(guild, user, banned_by, reason):
+    member = guild.get_member(user.id)
+    roles_snapshot = []
+    if isinstance(member, discord.Member):
+        roles_snapshot = [
+            {"id": str(r.id), "name": r.name}
+            for r in member.roles
+            if r.id != guild.id
+        ]
+    append_ban_log({
+        "source": "admin",
+        "guild_id": str(guild.id),
+        "guild_name": guild.name,
+        "user_id": str(user.id),
+        "username": str(user),
+        "display_name": getattr(user, "display_name", None) or str(user),
+        "user_created_at": user.created_at.isoformat() if getattr(user, "created_at", None) else "",
+        "joined_at": member.joined_at.isoformat() if member and member.joined_at else "",
+        "roles_at_ban": roles_snapshot,
+        "banned_by_id": str(banned_by.id) if banned_by else "",
+        "banned_by_name": str(banned_by) if banned_by else "",
+        "reason_text": "Admin ban thu cong",
+        "audit_reason": reason or "",
+    })
+
 # Sự kiện khi một thành viên bị Ban khỏi server
 @bot.event
 async def on_member_ban(guild, user):
+    entry = await find_ban_audit_entry(guild, user)
+    banned_by = entry.user if entry else None
+    reason = entry.reason if entry else None
+
+    # Ban do chính bot thực hiện (spam trap) đã được append_ban_log ở ban_spam_trap_suspect.
+    # _spam_trap_banning bắt được cả khi bot thiếu quyền View Audit Log.
+    by_this_bot = (guild.id, user.id) in _spam_trap_banning or (
+        banned_by is not None and bot.user is not None and banned_by.id == bot.user.id
+    )
+    if not by_this_bot:
+        append_admin_ban_log(guild, user, banned_by, reason)
+        who = f"{banned_by} ({banned_by.id})" if banned_by else "khong ro"
+        log_event("admin_ban", f"Ghi ban log: {user.id} bi ban boi {who}.")
+
     if BAN_LOG_THREAD_ID:
         try:
             # Thử lấy kênh/thread từ cache
             log_channel = bot.get_channel(BAN_LOG_THREAD_ID)
-            
+
             # Nếu không thấy trong cache, có thể là do khởi động lại, fetch thử từ guild
             if not log_channel:
                 try:
@@ -458,7 +520,7 @@ async def on_member_ban(guild, user):
                 except:
                     # fetch_channel cũng bao gồm cả thread (vì thread là subclass subclassing Discord Channels)
                     pass
-            
+
             if log_channel:
                 embed = discord.Embed(
                     title="Búa Tạ Đã Vung 🔨",
@@ -468,20 +530,12 @@ async def on_member_ban(guild, user):
                     color=0xff0000
                 )
                 embed.set_footer(text="Hệ thống Ghi Log Ban Cố Định")
-                
-                # Fetch entry từ Audit Log để xem ai ban và lý do (tuỳ chọn).
-                # Quét vài entry gần nhất thay vì chỉ 1: khi ban nhiều người liên tiếp
-                # (vd spam trap), entry mới nhất có thể không phải user này.
-                try:
-                    async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.ban):
-                        if entry.target and entry.target.id == user.id:
-                            embed.add_field(name="Ban bởi Admin", value=f"{entry.user.mention} (`{entry.user.id}`)", inline=False)
-                            if entry.reason:
-                                embed.add_field(name="Lý do", value=entry.reason, inline=False)
-                            break
-                except:
-                    pass
-                
+
+                if banned_by:
+                    embed.add_field(name="Ban bởi Admin", value=f"{banned_by.mention} (`{banned_by.id}`)", inline=False)
+                if reason:
+                    embed.add_field(name="Lý do", value=reason, inline=False)
+
                 await log_channel.send(embed=embed)
         except Exception as e:
             print(f"Lỗi khi gửi log ban: {e}")

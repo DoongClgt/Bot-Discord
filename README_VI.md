@@ -42,8 +42,8 @@ TARGET_CATEGORY_IDS=''
 EXCLUDED_CHANNEL_IDS=''
 
 # Spam trap
-SPAM_TRAP_CHANNEL_ID=''
-SPAM_TRAP_CHANNEL_ID_2=''
+# Kênh bẫy: nhiều ID cách nhau bằng dấu phẩy. Thêm/bớt được ngay trên dashboard.
+SPAM_TRAP_CHANNEL_IDS=''
 SPAM_TRAP_EXCLUDED_ROLE_IDS=''
 SPAM_TRAP_BAN_DELETE_SECONDS='3600'
 
@@ -185,8 +185,7 @@ Ghi chú:
 Biến `.env` quan trọng:
 
 ```env
-SPAM_TRAP_CHANNEL_ID=''
-SPAM_TRAP_CHANNEL_ID_2=''
+SPAM_TRAP_CHANNEL_IDS=''
 SPAM_TRAP_EXCLUDED_ROLE_IDS=''
 SPAM_TRAP_BAN_DELETE_SECONDS='3600'
 BAN_LOG_THREAD_ID=''
@@ -194,6 +193,7 @@ BAN_LOG_THREAD_ID=''
 
 Cách hoạt động:
 
+- Kênh bẫy khai báo ở `SPAM_TRAP_CHANNEL_IDS` (nhiều ID cách nhau bằng dấu phẩy, không giới hạn số kênh). Trên dashboard, tab **Spam trap** có ô chọn kênh: gõ tên kênh để thêm, bấm `×` để bỏ, rồi **Lưu và restart bot**. Hai biến cũ `SPAM_TRAP_CHANNEL_ID` / `SPAM_TRAP_CHANNEL_ID_2` vẫn được đọc nếu `.env` cũ còn, và sẽ tự gộp vào biến mới ở lần lưu đầu tiên.
 - Ai nhắn vào kênh bẫy là **bị ban luôn** (kèm xoá tin nhắn). Không còn role/kênh nghi phạm.
 - Khi ban, Discord xoá luôn tin nhắn của người đó **ở mọi kênh** trong khoảng `SPAM_TRAP_BAN_DELETE_SECONDS` giây gần nhất (mặc định 3600 = 1 tiếng, tối đa 604800). Nhờ vậy tin cũ ở các kênh ngoài cũng bị dọn, không chỉ tin vừa gửi.
 - Người có role trong `SPAM_TRAP_EXCLUDED_ROLE_IDS` được miễn trừ: tin nhắn ở kênh bẫy vẫn bị xoá nhưng **không** bị ban.
@@ -205,6 +205,12 @@ Cách hoạt động:
 ## Ban Log Tự Động
 
 Ngoài spam trap, bot còn lắng nghe sự kiện `on_member_ban`. Mỗi khi có người bị ban (kể cả admin ban tay), bot gửi embed "Búa Tạ Đã Vung 🔨" vào `BAN_LOG_THREAD_ID` kèm thông tin từ audit log (ai ban, lý do nếu có).
+
+Admin ban tay cũng được ghi vào `data/ban_log.jsonl` và hiện trên trang **Ban log** của dashboard, cột **Nguồn** ghi `Admin` + tên người ban (ban từ bẫy ghi `Spam trap`). Ghi chú:
+
+- Ban do chính bot thực hiện không bị ghi 2 lần.
+- Muốn biết ai ban, bot cần quyền **View Audit Log**; thiếu quyền thì vẫn ghi log nhưng cột Nguồn hiện "không rõ ai ban".
+- Bộ đếm "Số mít tơ bít đã ban" trong kênh bẫy **không** tính ban của admin, kể cả khi bấm "Cập nhật số đếm ban".
 
 ## Tin Nhắn Khởi Động
 

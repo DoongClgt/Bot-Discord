@@ -9,7 +9,7 @@ Vietnamese setup guide: [README_VI.md](README_VI.md)
 - Flask dashboard with Discord-themed sidebar UI (6 pages: Overview with CPU/RAM sparkline + quick actions, Settings, Steam Watcher, Logs, Ban log (history + download), Version). Save Config auto-restarts the bot. UTC+7 timestamps. HTML/CSS/JS split across `templates/index.html`, `static/dashboard.css`, `static/dashboard.js`. Ban events are appended to `data/ban_log.jsonl` and downloadable via `/api/ban_log/download`.
 - Discord slash commands and text fallback commands.
 - Spam trap flow: anyone who chats in a configured trap channel is banned immediately (excluded roles only get their message deleted), with a self-updating ban counter in both trap channels.
-- Ban audit log: every ban (including manual admin bans) is logged into `BAN_LOG_THREAD_ID` with audit info.
+- Ban audit log: every ban (including manual admin bans) is logged into `BAN_LOG_THREAD_ID` with audit info, and appended to `data/ban_log.jsonl` with a `source` field (`spam_trap` or `admin` + who banned). The spam-trap counter ignores `admin` rows.
 - Auto-delete embeds by configured target user, keywords, category, and channel filters.
 - Auto-assign a default role to new members joining the server (skipped if they already have it).
 - Steam patch/update watcher using Steam Events with interval (minutes or hours) or scheduled hours.
@@ -81,8 +81,8 @@ TARGET_CATEGORY_IDS=''
 EXCLUDED_CHANNEL_IDS=''
 
 # Spam trap
-SPAM_TRAP_CHANNEL_ID=''
-SPAM_TRAP_CHANNEL_ID_2=''
+# Trap channels: comma-separated IDs, as many as you want. Editable from the dashboard.
+SPAM_TRAP_CHANNEL_IDS=''
 SPAM_TRAP_EXCLUDED_ROLE_IDS=''
 # Seconds of the banned user's messages Discord deletes across all channels (default 3600 = 1 hour, max 604800).
 SPAM_TRAP_BAN_DELETE_SECONDS='3600'
@@ -143,7 +143,7 @@ Slash commands:
 /ticket_panel
 ```
 
-`/synccounter` recomputes the spam-trap ban counter from `data/ban_log.jsonl` and updates the counter message (also available as the "Cập nhật số đếm ban" dashboard button / IPC `recount_ban_counter`).
+`/synccounter` recomputes the spam-trap ban counter from `data/ban_log.jsonl` (admin bans excluded) and updates the counter message (also available as the "Cập nhật số đếm ban" dashboard button / IPC `recount_ban_counter`).
 
 Text command aliases also available: `/online`, `/status`, `/patchcheck`, `/sdbcheckrecent`, `/patchrecent`, `/rescanchannels`, `/recount`, `/recountban`.
 
