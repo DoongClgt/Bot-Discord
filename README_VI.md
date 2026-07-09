@@ -206,7 +206,7 @@ Cách hoạt động:
 
 Ngoài spam trap, bot còn lắng nghe sự kiện `on_member_ban`. Mỗi khi có người bị ban (kể cả admin ban tay), bot gửi embed "Búa Tạ Đã Vung 🔨" vào `BAN_LOG_THREAD_ID` kèm thông tin từ audit log (ai ban, lý do nếu có).
 
-Admin ban tay cũng được ghi vào `data/ban_log.jsonl` và hiện trên trang **Ban log** của dashboard, cột **Nguồn** ghi `Admin` + tên người ban (ban từ bẫy ghi `Spam trap`). Ghi chú:
+Admin ban tay cũng được ghi vào `data/ban_log.jsonl` và hiện trên trang **Ban log** của dashboard, cột **Nguồn** ghi `Admin` + tên người ban (ban từ bẫy ghi `Spam trap` + tên bot). Mọi dòng đều lưu `banned_by_id`, `banned_by_name`, `banned_by_display_name`. Ghi chú:
 
 - Ban do chính bot thực hiện không bị ghi 2 lần.
 - Muốn biết ai ban, bot cần quyền **View Audit Log**; thiếu quyền thì vẫn ghi log nhưng cột Nguồn hiện "không rõ ai ban".

@@ -9,7 +9,7 @@ Vietnamese setup guide: [README_VI.md](README_VI.md)
 - Flask dashboard with Discord-themed sidebar UI (6 pages: Overview with CPU/RAM sparkline + quick actions, Settings, Steam Watcher, Logs, Ban log (history + download), Version). Save Config auto-restarts the bot. UTC+7 timestamps. HTML/CSS/JS split across `templates/index.html`, `static/dashboard.css`, `static/dashboard.js`. Ban events are appended to `data/ban_log.jsonl` and downloadable via `/api/ban_log/download`.
 - Discord slash commands and text fallback commands.
 - Spam trap flow: anyone who chats in a configured trap channel is banned immediately (excluded roles only get their message deleted), with a self-updating ban counter in both trap channels.
-- Ban audit log: every ban (including manual admin bans) is logged into `BAN_LOG_THREAD_ID` with audit info, and appended to `data/ban_log.jsonl` with a `source` field (`spam_trap` or `admin` + who banned). The spam-trap counter ignores `admin` rows.
+- Ban audit log: every ban (including manual admin bans) is logged into `BAN_LOG_THREAD_ID` with audit info, and appended to `data/ban_log.jsonl` with a `source` field (`spam_trap` or `admin`) plus `banned_by_id` / `banned_by_name` / `banned_by_display_name`. The spam-trap counter ignores `admin` rows.
 - Auto-delete embeds by configured target user, keywords, category, and channel filters.
 - Auto-assign a default role to new members joining the server (skipped if they already have it).
 - Steam patch/update watcher using Steam Events with interval (minutes or hours) or scheduled hours.

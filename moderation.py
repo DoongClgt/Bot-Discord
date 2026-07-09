@@ -286,6 +286,19 @@ async def recount_and_sync_ban_counter():
 # In-memory chống xử lý ban trùng cho cùng (guild, user) khi gateway gửi MESSAGE_CREATE 2 lần
 _spam_trap_banning: set = set()
 
+def banned_by_fields(actor):
+    """Thông tin người/bot thực hiện lệnh ban, dùng chung cho mọi dòng ban_log.
+
+    actor=None khi bot không tra được audit log (thiếu quyền View Audit Log).
+    """
+    if actor is None:
+        return {"banned_by_id": "", "banned_by_name": "", "banned_by_display_name": ""}
+    return {
+        "banned_by_id": str(actor.id),
+        "banned_by_name": str(actor),
+        "banned_by_display_name": getattr(actor, "display_name", None) or str(actor),
+    }
+
 async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audit_reason: str):
     guild = message.guild
     if guild is None:
@@ -326,6 +339,8 @@ async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audi
         log_event("spam_trap_ban", f"Da ban {author.id}: {reason_text}")
         append_ban_log({
             "source": "spam_trap",
+            # Người ban chính là bot; ưu tiên guild.me để lấy nickname trong server.
+            **banned_by_fields(guild.me or bot.user),
             "guild_id": str(guild.id),
             "guild_name": guild.name,
             "user_id": str(author.id),
@@ -477,6 +492,7 @@ def append_admin_ban_log(guild, user, banned_by, reason):
         ]
     append_ban_log({
         "source": "admin",
+        **banned_by_fields(banned_by),
         "guild_id": str(guild.id),
         "guild_name": guild.name,
         "user_id": str(user.id),
@@ -485,8 +501,6 @@ def append_admin_ban_log(guild, user, banned_by, reason):
         "user_created_at": user.created_at.isoformat() if getattr(user, "created_at", None) else "",
         "joined_at": member.joined_at.isoformat() if member and member.joined_at else "",
         "roles_at_ban": roles_snapshot,
-        "banned_by_id": str(banned_by.id) if banned_by else "",
-        "banned_by_name": str(banned_by) if banned_by else "",
         "reason_text": "Admin ban thu cong",
         "audit_reason": reason or "",
     })

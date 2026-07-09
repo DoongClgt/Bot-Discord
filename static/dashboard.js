@@ -453,10 +453,14 @@
                     ? `${it.username}\n${it.user_id || ""}`
                     : it.user_id || "-";
                 setTextCell(row, userText, "log-message");
-                // Bản ghi cũ không có 'source' đều là ban spam trap.
-                const sourceText = it.source === "admin"
-                    ? "Admin\n" + (it.banned_by_name || "không rõ ai ban")
-                    : "Spam trap";
+                // Bản ghi cũ không có 'source' đều là ban spam trap, và không có banned_by_*.
+                const label = it.source === "admin" ? "Admin" : "Spam trap";
+                const by = it.banned_by_display_name || it.banned_by_name || "";
+                const sourceText = by
+                    ? `${label}\n${by}`
+                    : it.source === "admin"
+                        ? `${label}\nkhông rõ ai ban`
+                        : label;
                 setTextCell(row, sourceText, "log-message");
                 const channelText = it.channel_name
                     ? `#${it.channel_name}\n${it.channel_id || ""}`
