@@ -280,6 +280,7 @@ Ghi chú:
 - `STEAMDB_PATCH_INTERVAL_MINUTES > 0`: chạy theo interval (phút), clamp 1–1440, **ưu tiên cao nhất** (vd `30` → 00:00, 00:30, 01:00,...). Lịch cũng align từ **0h mỗi ngày**.
 - `STEAMDB_PATCH_INTERVAL_HOURS > 0` (khi `STEAMDB_PATCH_INTERVAL_MINUTES` = 0/rỗng): chạy theo interval (giờ), clamp 1–168. Lịch tính từ **0h mỗi ngày**, không phải từ lúc bot online (vd interval=1 → 00:00, 01:00, 02:00,...; interval=3 → 00:00, 03:00, 06:00,...).
 - Cả hai = 0: chạy theo các giờ trong `STEAMDB_PATCH_SCHEDULE_HOURS` (mặc định `0,6,12,18`).
+- Dashboard trang "Steam Watcher" chỉnh interval **theo phút** (`STEAMDB_PATCH_INTERVAL_MINUTES`); khi lưu sẽ tự xoá `STEAMDB_PATCH_INTERVAL_HOURS` cũ. Muốn dùng interval theo giờ thì sửa tay trong `.env`.
 - `STEAM_WATCHER_MAX_AGE_DAYS` lọc bỏ event cũ hơn N ngày (mặc định 7).
 - Mỗi lần check chỉ đẩy tối đa 1 patch để tránh spam; phần còn lại được ghi nhớ.
 - `STEAMDB_PATCH_MENTION_USER_ID` ping một người; `STEAMDB_PATCH_MENTION_USER_IDS` ping nhiều người, cách nhau bằng dấu phẩy.

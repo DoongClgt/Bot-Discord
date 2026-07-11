@@ -225,6 +225,9 @@ def save_config():
         # Dashboard đã gộp kênh bẫy vào một biến; xoá 2 biến cũ để bỏ chọn kênh có tác dụng.
         new_config.setdefault('SPAM_TRAP_CHANNEL_ID', '')
         new_config.setdefault('SPAM_TRAP_CHANNEL_ID_2', '')
+    if 'STEAMDB_PATCH_INTERVAL_MINUTES' in new_config:
+        # Dashboard giờ chỉ chỉnh Steam watcher theo phút; xoá interval giờ cũ để nó không lấn át.
+        new_config.setdefault('STEAMDB_PATCH_INTERVAL_HOURS', '')
     for key, value in new_config.items():
         dotenv.set_key(ENV_FILE, key, str(value))
     
