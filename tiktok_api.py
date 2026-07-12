@@ -76,6 +76,22 @@ def _aweme_id(url):
     return None
 
 
+def _douyin_hd_url(wm_url):
+    """Tu URL playwm cua Douyin, dung link play khong logo o chat luong cao nhat.
+
+    Trang share tra ve URL co logo_name=aweme_diversion_* -> ghim luong 720p nen.
+    Bo logo_name va xin ratio=4k (chi giu video_id): Douyin tu cap ve muc that su cua
+    video (1080p->1080p, 2K->2K, 4K->4K), khong upscale, khong loi -> luon net nhat.
+    Fallback: doi 'playwm'->'play' neu khong lay duoc video_id.
+    """
+    if not wm_url:
+        return None
+    video_id = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(wm_url).query)).get("video_id")
+    if video_id:
+        return "https://aweme.snssdk.com/aweme/v1/play/?video_id=" + video_id + "&ratio=4k"
+    return wm_url.replace("playwm", "play")
+
+
 def fetch_douyin_native(source_url):
     """Parse thang tu trang share Douyin khi tikwm bo tay.
 
@@ -108,7 +124,7 @@ def fetch_douyin_native(source_url):
     images = [im["url_list"][0] for im in (item.get("images") or []) if im.get("url_list")]
     play_urls = (video.get("play_addr") or {}).get("url_list") or []
     wm = play_urls[0] if play_urls else None
-    nowm = wm.replace("playwm", "play") if wm else None
+    nowm = _douyin_hd_url(wm)
     cover_urls = ((video.get("cover") or video.get("origin_cover") or {}).get("url_list")) or []
     duration_ms = video.get("duration") or 0
     return {
