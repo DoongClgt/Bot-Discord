@@ -4,7 +4,7 @@ Bot Discord dùng để quản lý spam trap, xoá tin nhắn theo điều kiệ
 
 ## Tính Năng Chính
 
-- Dashboard web chạy bằng Flask, theme Discord, có sidebar 6 trang: Tổng quan (status + sparkline CPU/RAM + tác vụ nhanh), Cấu hình, Steam Watcher, Log gần đây, Ban log (lịch sử ban + tải file), Version. Save Config tự restart bot, log timestamp UTC+7.
+- Dashboard web chạy bằng Flask, theme Discord, có sidebar: Tổng quan (status + sparkline CPU/RAM + tác vụ nhanh), Cấu hình, Steam Watcher, Tải TikTok (tải video/ảnh về máy), Log gần đây, Ban log (lịch sử ban + tải file), Tickets, Version. Save Config tự restart bot, log timestamp UTC+7.
 - Slash command và text command cho Discord.
 - Spam trap: ai chat vào kênh bẫy là bị ban luôn (role miễn trừ chỉ bị xoá tin nhắn), có bộ đếm "mít tơ bít đã ban" tự cập nhật trong cả 2 kênh bẫy.
 - Ghi log mọi lượt ban (kể cả admin ban tay) vào thread `BAN_LOG_THREAD_ID` kèm thông tin audit log.
@@ -12,6 +12,7 @@ Bot Discord dùng để quản lý spam trap, xoá tin nhắn theo điều kiệ
 - Tự động cấp role cho thành viên mới khi vào server (nếu đã có role thì bỏ qua).
 - Steam watcher: theo dõi patch/update game bằng Steam Events.
 - Quản lý danh sách game bằng lệnh `/game add`, `/game remove`, `/game list`, `/game help`.
+- Tải video/ảnh TikTok & Douyin không logo **qua dashboard** (trang "Tải TikTok"). *(Lệnh `/tiktok` trong Discord hiện đã tắt.)*
 
 ## Cài Đặt Trên VPS
 
@@ -179,6 +180,14 @@ Ghi chú:
 - Các lệnh quản trị cần quyền `Manage Messages`.
 - `/dlt` slash trả lời ephemeral (chỉ người gọi thấy).
 - `/check` và `/game remove` slash có autocomplete theo bảng game.
+
+## Tải TikTok / Douyin (qua dashboard)
+
+- Mở trang **Tải TikTok** ở sidebar, dán link TikTok hoặc Douyin rồi bấm **Lấy video** — dashboard hiện preview (ảnh bìa, tiêu đề, tác giả) và nút tải video/ảnh **không logo về thẳng máy** qua trình duyệt. API: `POST /api/tiktok/resolve`, `GET /api/tiktok/download`.
+- Dùng API `tikwm.com` — không cần cài thêm gì (không yt-dlp/ffmpeg).
+- File tải về đặt tên theo **tiêu đề clip + ID video** (vd `Tiêu đề clip_7660736561704717620.mp4`) để không bị trùng.
+- Link Douyin: tikwm không hỗ trợ nên tự parse thẳng từ trang share Douyin, lấy bản không logo.
+- **Lệnh `/tiktok` trong Discord đã tắt** (không import `downloader.py` trong `bot.py`). Muốn bật lại: bỏ comment dòng `import downloader` rồi restart bot.
 
 ## Spam Trap
 

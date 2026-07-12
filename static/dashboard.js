@@ -35,6 +35,7 @@
         dashboard: { title: "Tổng quan", subtitle: "Trạng thái và tác vụ nhanh" },
         settings: { title: "Cấu hình", subtitle: "Token, keywords, kênh áp dụng" },
         steam: { title: "Steam Watcher", subtitle: "Theo dõi patch trên Steam" },
+        downloader: { title: "Tải TikTok", subtitle: "Tải video/ảnh TikTok & Douyin không logo" },
         logs: { title: "Log gần đây", subtitle: "Sự kiện mới nhất từ bot" },
         banlog: { title: "Ban log", subtitle: "Lịch sử ban từ spam trap và admin, có thể tải về" },
         tickets: { title: "Tickets", subtitle: "Transcript ticket đã đóng, có thể tải về" },
@@ -572,6 +573,77 @@
         }
     }
 
+    /* ── TikTok / Douyin downloader ───────────────────────── */
+
+    function ttDownloadUrl(source, kind, i) {
+        const params = new URLSearchParams({ url: source, kind });
+        if (typeof i === "number") params.set("i", String(i));
+        return "/api/tiktok/download?" + params.toString();
+    }
+
+    function renderTikTokResult(media) {
+        const box = document.getElementById("ttResult");
+        if (!box) return;
+        const source = media.source;
+        const metaParts = [];
+        if (media.author) metaParts.push(`👤 ${escapeHtml(media.author)}`);
+        if (media.duration) metaParts.push(`⏱️ ${media.duration}s`);
+        let downloads;
+        if (media.is_slideshow) {
+            const imgs = (media.images || [])
+                .map((_u, i) => `<a class="btn ghost" href="${ttDownloadUrl(source, "image", i)}" download>Ảnh ${i + 1}</a>`)
+                .join("");
+            downloads = `<div class="tt-meta">Slideshow ${media.images.length} ảnh</div><div class="btn-row">${imgs}</div>`;
+        } else {
+            downloads = `<div class="btn-row"><a class="btn success" href="${ttDownloadUrl(source, "video")}" download>Tải video (.mp4)</a></div>`;
+        }
+        const cover = media.cover
+            ? `<img class="tt-cover" src="${escapeHtml(media.cover)}" alt="cover" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
+            : "";
+        box.innerHTML = `
+            <div class="tt-preview">
+                ${cover}
+                <div class="tt-info">
+                    <div class="tt-title">${escapeHtml(media.title || "(không có tiêu đề)")}</div>
+                    <div class="tt-meta">${metaParts.join(" · ")}</div>
+                    ${downloads}
+                </div>
+            </div>
+        `;
+    }
+
+    async function resolveTikTok() {
+        const input = document.getElementById("ttUrl");
+        const box = document.getElementById("ttResult");
+        const url = input ? input.value.trim() : "";
+        if (!url) {
+            showToast("Dán link TikTok/Douyin trước.", "warning");
+            return;
+        }
+        setButtonBusy("btnTtResolve", true, "Đang lấy...");
+        if (box) box.innerHTML = '<div class="readonly-empty">Đang lấy dữ liệu...</div>';
+        try {
+            const res = await fetch("/api/tiktok/resolve", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                if (box) box.innerHTML = "";
+                showToast(data.message || "Không lấy được media.", "warning");
+                return;
+            }
+            renderTikTokResult(data);
+            showToast("Đã lấy media. Bấm nút để tải về.", "success");
+        } catch (err) {
+            if (box) box.innerHTML = "";
+            showToast("Lỗi: " + (err.message || err), "error");
+        } finally {
+            setButtonBusy("btnTtResolve", false);
+        }
+    }
+
     /* ── Version ──────────────────────────────────────────── */
 
     function setText(id, value) {
@@ -918,10 +990,21 @@
                 else if (action === "download-banlog") downloadBanLog();
                 else if (action === "reload-tickets") loadTickets();
                 else if (action === "download-all-transcripts") downloadAllTranscripts();
+                else if (action === "tiktok-resolve") resolveTikTok();
                 else if (action === "open-env") openEnvModal();
                 else if (action === "close-modal") closeModal(btn.closest(".modal-backdrop"));
             });
         });
+
+        const ttInput = document.getElementById("ttUrl");
+        if (ttInput) {
+            ttInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    resolveTikTok();
+                }
+            });
+        }
 
         document.querySelectorAll(".modal-backdrop").forEach((bd) => {
             bd.addEventListener("click", (e) => {

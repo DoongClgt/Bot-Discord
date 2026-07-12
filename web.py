@@ -9,6 +9,7 @@ import sys
 import dotenv
 import time
 import zipfile
+import tiktok_api
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -458,6 +459,61 @@ def tickets_transcript_download(filename):
         mimetype='text/plain; charset=utf-8',
         as_attachment=True,
         download_name=safe,
+    )
+
+
+@app.route('/api/tiktok/resolve', methods=['POST'])
+def tiktok_resolve():
+    """Nhan link TikTok/Douyin, tra ve metadata + link media de dashboard hien thi preview."""
+    payload = request.json or {}
+    source = tiktok_api.find_url(payload.get('url', ''))
+    if not source:
+        return jsonify({"success": False, "message": "Link không hợp lệ. Cần link TikTok hoặc Douyin."}), 400
+    try:
+        data = tiktok_api.fetch_media_info(source)
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Không lấy được media: {e}"}), 502
+    media = tiktok_api.extract_media(data)
+    media["success"] = True
+    media["source"] = source
+    return jsonify(media)
+
+
+@app.route('/api/tiktok/download', methods=['GET'])
+def tiktok_download():
+    """Proxy tai media qua server de ep tai xuong dung ten file.
+
+    Chi nhan link nguon TikTok/Douyin (validate), link media lay tu tikwm -> tranh SSRF.
+    """
+    source = tiktok_api.find_url(request.args.get('url', ''))
+    if not source:
+        return jsonify({"success": False, "message": "Link không hợp lệ."}), 400
+    kind = request.args.get('kind', 'video')
+    try:
+        data = tiktok_api.fetch_media_info(source)
+        media = tiktok_api.extract_media(data)
+        name_base = tiktok_api.safe_filename_base(media, source)
+        if kind == 'image':
+            idx_raw = request.args.get('i', '0')
+            idx = int(idx_raw) if str(idx_raw).isdigit() else 0
+            images = media["images"]
+            if not images or idx >= len(images):
+                return jsonify({"success": False, "message": "Không tìm thấy ảnh."}), 404
+            content = tiktok_api.http_get(images[idx])
+            mimetype, download_name = 'image/jpeg', f"{name_base}_{idx + 1}.jpg"
+        else:
+            video_url = media["video_url"]
+            if not video_url:
+                return jsonify({"success": False, "message": "Không tìm thấy link video."}), 404
+            content = tiktok_api.http_get(video_url)
+            mimetype, download_name = 'video/mp4', f"{name_base}.mp4"
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Không tải được: {e}"}), 502
+    return send_file(
+        io.BytesIO(content),
+        mimetype=mimetype,
+        as_attachment=True,
+        download_name=download_name,
     )
 
 
