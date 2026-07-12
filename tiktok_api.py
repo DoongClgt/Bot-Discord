@@ -7,6 +7,7 @@ Thuan urllib, khong phu thuoc discord/flask. Dung chung boi:
 import json as _json
 import re
 import time
+import unicodedata
 import urllib.parse
 import urllib.request
 
@@ -163,20 +164,19 @@ def pick_video_url(data):
     return data.get("hdplay") or data.get("play") or data.get("wmplay")
 
 
-_ILLEGAL_FS = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
-
-
 def safe_filename_base(media, source_url="", max_len=60):
-    """Tao ten file goi (chua co duoi) tu tieu de clip + video id de tranh trung.
+    """Tao ten file goi (chua co duoi) tu tieu de clip + video id.
 
-    Bo ky tu cam tren Windows, gom khoang trang, cat ngan. Gan id lam hau to.
-    Vi du: "Replying to @user_7438266140897430817".
+    Bo dau tieng Viet + moi ky tu non-ASCII (emoji, chu Han...) de tranh loi ten
+    file/encoding tren proxy/OS. Cac tu ngan cach bang "_". Gan id lam hau to.
+    Vi du: "Replying_to_user_7438266140897430817". Douyin/chu Han -> chi con id.
     """
-    base = (media.get("title") or media.get("author") or "").strip()
-    base = _ILLEGAL_FS.sub("", base)
-    base = re.sub(r"\s+", " ", base).strip().strip(".")
+    raw = (media.get("title") or media.get("author") or "")
+    raw = raw.replace("đ", "d").replace("Đ", "D")  # đ/Đ khong tach dau qua NFKD
+    ascii_str = unicodedata.normalize("NFKD", raw).encode("ascii", "ignore").decode("ascii")
+    base = re.sub(r"[^A-Za-z0-9]+", "_", ascii_str).strip("_")
     if len(base) > max_len:
-        base = base[:max_len].strip()
+        base = base[:max_len].strip("_")
     vid = str(media.get("id") or "").strip() or _aweme_id(source_url)
     if vid:
         base = f"{base}_{vid}" if base else vid

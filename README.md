@@ -152,7 +152,7 @@ Text command aliases also available: `/online`, `/status`, `/patchcheck`, `/sdbc
 
 - Open the **Tải TikTok** page in the sidebar, paste a TikTok or Douyin link, click **Lấy video** — it shows a preview (cover, title, author) and download buttons that save the **watermark-free** video/images straight to your computer via the browser. Endpoints: `POST /api/tiktok/resolve`, `GET /api/tiktok/download`; tikwm API core in `tiktok_api.py`.
 - Backed by the `tikwm.com` API — no extra dependency (no yt-dlp/ffmpeg).
-- Saved files are named after the clip title + video id (e.g. `Clip title_7660736561704717620.mp4`) to avoid collisions.
+- Saved files are named after the clip title (diacritics/emoji/CJK stripped, words joined by `_`) + video id (e.g. `Clip_title_7660736561704717620.mp4`) to avoid collisions and encoding issues. The name is set client-side (via the `download` attribute), so it survives proxies that strip `Content-Disposition` (otherwise the browser would fall back to `download.mp4`).
 - Douyin links: tikwm doesn't support them, so it parses the Douyin share page directly and picks the watermark-free source.
 - **The in-Discord `/tiktok` command is disabled** (`downloader.py` is not imported in `bot.py`). To re-enable: uncomment the `import downloader` line and restart the bot.
 

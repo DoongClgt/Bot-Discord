@@ -185,7 +185,7 @@ Ghi chú:
 
 - Mở trang **Tải TikTok** ở sidebar, dán link TikTok hoặc Douyin rồi bấm **Lấy video** — dashboard hiện preview (ảnh bìa, tiêu đề, tác giả) và nút tải video/ảnh **không logo về thẳng máy** qua trình duyệt. API: `POST /api/tiktok/resolve`, `GET /api/tiktok/download`.
 - Dùng API `tikwm.com` — không cần cài thêm gì (không yt-dlp/ffmpeg).
-- File tải về đặt tên theo **tiêu đề clip + ID video** (vd `Tiêu đề clip_7660736561704717620.mp4`) để không bị trùng.
+- File tải về đặt tên theo **tiêu đề clip (bỏ dấu, bỏ emoji/chữ Hán, cách nhau bằng `_`) + ID video** (vd `Tieu_de_clip_7660736561704717620.mp4`) để tránh trùng và lỗi encoding. Tên gắn sẵn ở client nên không phụ thuộc header server (khỏi bị Cloudflare/proxy làm hỏng thành `download.mp4`).
 - Link Douyin: tikwm không hỗ trợ nên tự parse thẳng từ trang share Douyin, lấy bản không logo.
 - **Lệnh `/tiktok` trong Discord đã tắt** (không import `downloader.py` trong `bot.py`). Muốn bật lại: bỏ comment dòng `import downloader` rồi restart bot.
 

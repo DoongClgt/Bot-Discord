@@ -581,6 +581,20 @@
         return "/api/tiktok/download?" + params.toString();
     }
 
+    // Mirror tiktok_api.safe_filename_base: dat ten file o client de khong phu thuoc
+    // header Content-Disposition (co the bi Cloudflare/proxy luoc bo -> "download.mp4").
+    function ttFileBase(media) {
+        let raw = (media.title || media.author || "").replace(/đ/g, "d").replace(/Đ/g, "D");
+        let ascii = raw.normalize("NFKD")
+            .replace(/[\u0300-\u036f]/g, "")   // bo dau ket hop (tieng Viet...)
+            .replace(/[^\x20-\x7e]/g, "");     // bo ky tu non-ASCII con lai (emoji, chu Han)
+        let base = ascii.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+        if (base.length > 60) base = base.slice(0, 60).replace(/^_+|_+$/g, "");
+        const id = String(media.id || "").trim();
+        if (id) base = base ? `${base}_${id}` : id;
+        return base || "tiktok";
+    }
+
     function renderTikTokResult(media) {
         const box = document.getElementById("ttResult");
         if (!box) return;
@@ -588,14 +602,15 @@
         const metaParts = [];
         if (media.author) metaParts.push(`👤 ${escapeHtml(media.author)}`);
         if (media.duration) metaParts.push(`⏱️ ${media.duration}s`);
+        const fileBase = escapeHtml(ttFileBase(media));
         let downloads;
         if (media.is_slideshow) {
             const imgs = (media.images || [])
-                .map((_u, i) => `<a class="btn ghost" href="${ttDownloadUrl(source, "image", i)}" download>Ảnh ${i + 1}</a>`)
+                .map((_u, i) => `<a class="btn ghost" href="${ttDownloadUrl(source, "image", i)}" download="${fileBase}_${i + 1}.jpg">Ảnh ${i + 1}</a>`)
                 .join("");
             downloads = `<div class="tt-meta">Slideshow ${media.images.length} ảnh</div><div class="btn-row">${imgs}</div>`;
         } else {
-            downloads = `<div class="btn-row"><a class="btn success" href="${ttDownloadUrl(source, "video")}" download>Tải video (.mp4)</a></div>`;
+            downloads = `<div class="btn-row"><a class="btn success" href="${ttDownloadUrl(source, "video")}" download="${fileBase}.mp4">Tải video (.mp4)</a></div>`;
         }
         const cover = media.cover
             ? `<img class="tt-cover" src="${escapeHtml(media.cover)}" alt="cover" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
