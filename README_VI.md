@@ -281,6 +281,7 @@ STEAMDB_PATCH_INTERVAL_MINUTES=''
 STEAMDB_PATCH_SCHEDULE_HOURS='0,6,12,18'
 STEAMDB_PATCH_LIMIT='25'
 STEAM_WATCHER_MAX_AGE_DAYS='7'
+STEAM_FETCH_CONCURRENCY='8'
 ```
 
 Ghi chú:
@@ -291,6 +292,7 @@ Ghi chú:
 - Cả hai = 0: chạy theo các giờ trong `STEAMDB_PATCH_SCHEDULE_HOURS` (mặc định `0,6,12,18`).
 - Dashboard trang "Steam Watcher" chỉnh interval **theo phút** (`STEAMDB_PATCH_INTERVAL_MINUTES`); khi lưu sẽ tự xoá `STEAMDB_PATCH_INTERVAL_HOURS` cũ. Muốn dùng interval theo giờ thì sửa tay trong `.env`.
 - `STEAM_WATCHER_MAX_AGE_DAYS` lọc bỏ event cũ hơn N ngày (mặc định 7).
+- `STEAM_FETCH_CONCURRENCY` (mặc định 8, clamp 1–16): số request song song tới Steam khi quét nhiều game. Trước quét tuần tự nên càng nhiều game càng chậm; giờ quét song song có giới hạn nên thời gian check gần như không đổi khi thêm game.
 - Mỗi lần check chỉ đẩy tối đa 1 patch để tránh spam; phần còn lại được ghi nhớ.
 - `STEAMDB_PATCH_MENTION_USER_ID` ping một người; `STEAMDB_PATCH_MENTION_USER_IDS` ping nhiều người, cách nhau bằng dấu phẩy.
 - `STEAMDB_APP_IDS` hỗ trợ dạng `730,570` hoặc `730_Counter-Strike 2, 570_Dota 2`.

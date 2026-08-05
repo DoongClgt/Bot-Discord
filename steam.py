@@ -82,6 +82,11 @@ STEAM_HTTP_TIMEOUT = 8
 RECENT_CHECK_TIMEOUT = 20
 STEAM_WATCHER_SEND_LIMIT = 1
 STEAM_RECENT_PATCH_CHECK_COUNT = 20
+# So request song song toi Steam khi quet nhieu game. Quet tuan tu N game -> N x latency;
+# song song co gioi han (semaphore) giu thoi gian quet gan nhu khong doi khi danh sach game tang.
+STEAM_FETCH_CONCURRENCY_RAW = os.getenv('STEAM_FETCH_CONCURRENCY', '8').strip()
+STEAM_FETCH_CONCURRENCY = int(STEAM_FETCH_CONCURRENCY_RAW) if STEAM_FETCH_CONCURRENCY_RAW.isdigit() else 8
+STEAM_FETCH_CONCURRENCY = min(max(STEAM_FETCH_CONCURRENCY, 1), 16)
 STEAM_EVENT_TYPE_LABELS = {
     12: "SMALL UPDATE / PATCH NOTES",
     13: "REGULAR UPDATE",
@@ -308,53 +313,61 @@ def fetch_steamdb_patches():
         patches = [patch for patch in patches if patch["app_id"] in STEAMDB_APP_IDS]
     return patches[:STEAMDB_PATCH_LIMIT]
 
-def fetch_steam_event_patches():
+def fetch_steam_events_raw(app_id, count, retries=1):
+    """Goi ajaxgetadjacentpartnerevents cho 1 app, tra ve list events (rong neu success!=1).
+
+    Raise URLError/TimeoutError neu het luot thu (retries=1 -> 2 lan thu, cach nhau 2s).
+    Ham thuan urllib nen goi qua asyncio.to_thread de chay song song nhieu app.
+    """
+    url = (
+        "https://store.steampowered.com/events/ajaxgetadjacentpartnerevents/"
+        f"?appid={app_id}&count_before=0&count_after={count}"
+        f"&event_type_filter={steam_event_type_filter()}"
+    )
+    for attempt in range(retries + 1):
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 DiscordPatchWatcher/1.0",
+                "Accept": "application/json",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=STEAM_HTTP_TIMEOUT) as resp:
+                data = _json.loads(resp.read().decode('utf-8', errors='replace'))
+            return data.get("events", []) if data.get("success") == 1 else []
+        except (urllib.error.URLError, TimeoutError):
+            if attempt < retries:
+                time.sleep(2)
+                continue
+            raise
+    return []
+
+async def fetch_steam_event_patches_async():
     if not STEAMDB_APP_IDS:
         raise RuntimeError("Chua cau hinh STEAMDB_APP_IDS de lay update tu Steam Events.")
 
-    patches = []
     cutoff_ts = steam_watcher_cutoff_ts()
     count_per_app = max(1, min(STEAMDB_PATCH_LIMIT, 100))
     app_ids = sorted(STEAMDB_APP_IDS)
+    sem = asyncio.Semaphore(STEAM_FETCH_CONCURRENCY)
+
+    async def worker(app_id):
+        async with sem:
+            return await asyncio.to_thread(fetch_steam_events_raw, app_id, count_per_app, 1)
+
+    results = await asyncio.gather(*(worker(app_id) for app_id in app_ids), return_exceptions=True)
+
+    patches = []
     failed_apps = 0
     last_error = None
-    for app_id in app_ids:
-        url = (
-            "https://store.steampowered.com/events/ajaxgetadjacentpartnerevents/"
-            f"?appid={app_id}&count_before=0&count_after={count_per_app}"
-            f"&event_type_filter={steam_event_type_filter()}"
-        )
-        data = None
-        for attempt in range(2):
-            req = urllib.request.Request(
-                url,
-                headers={
-                    "User-Agent": "Mozilla/5.0 DiscordPatchWatcher/1.0",
-                    "Accept": "application/json",
-                },
-            )
-            try:
-                with urllib.request.urlopen(req, timeout=STEAM_HTTP_TIMEOUT) as resp:
-                    data = _json.loads(resp.read().decode('utf-8', errors='replace'))
-                break
-            except (urllib.error.URLError, TimeoutError) as e:
-                last_error = e
-                if attempt == 0:
-                    time.sleep(2)
-                    continue
-                failed_apps += 1
-                log_event(
-                    "steamdb_check",
-                    f"Bo qua app {app_id} sau 2 lan thu: {e}",
-                    "warn",
-                )
-                data = None
-
-        if data is None:
+    for app_id, result in zip(app_ids, results):
+        if isinstance(result, Exception):
+            failed_apps += 1
+            last_error = result
+            log_event("steamdb_check", f"Bo qua app {app_id} sau 2 lan thu: {result}", "warn")
             continue
-        if data.get("success") != 1:
-            continue
-        for event in data.get("events", []):
+        for event in result:
             date_value = (
                 event.get("rtime32_start_time")
                 or (event.get("announcement_body") or {}).get("posttime")
@@ -373,22 +386,8 @@ def fetch_steam_event_patches():
     return patches[:STEAMDB_PATCH_LIMIT]
 
 def fetch_recent_steam_news_for_app(app_id):
-    url = (
-        "https://store.steampowered.com/events/ajaxgetadjacentpartnerevents/"
-        f"?appid={app_id}&count_before=0&count_after={STEAM_RECENT_PATCH_CHECK_COUNT}"
-        f"&event_type_filter={steam_event_type_filter()}"
-    )
-    req = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "Mozilla/5.0 DiscordPatchWatcher/1.0",
-            "Accept": "application/json",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=STEAM_HTTP_TIMEOUT) as resp:
-        data = _json.loads(resp.read().decode('utf-8', errors='replace'))
-
-    events = data.get("events", []) if data.get("success") == 1 else []
+    # retries=0: /check la lenh tuong tac, co timeout ngoai RECENT_CHECK_TIMEOUT -> khong sleep+thu lai
+    events = fetch_steam_events_raw(app_id, STEAM_RECENT_PATCH_CHECK_COUNT, retries=0)
     patches = [steam_event_to_patch(app_id, event) for event in events]
     patches = [patch for patch in patches if patch]
     if not patches:
@@ -403,8 +402,14 @@ async def fetch_recent_steam_news_for_apps_async(app_ids, timeout=RECENT_CHECK_T
     if not app_ids:
         return recent, []
 
+    sem = asyncio.Semaphore(STEAM_FETCH_CONCURRENCY)
+
+    async def worker(app_id):
+        async with sem:
+            return await asyncio.to_thread(fetch_recent_steam_news_for_app, app_id)
+
     tasks = {
-        asyncio.create_task(asyncio.to_thread(fetch_recent_steam_news_for_app, app_id)): app_id
+        asyncio.create_task(worker(app_id)): app_id
         for app_id in app_ids
     }
     done, pending = await asyncio.wait(tasks.keys(), timeout=timeout)
@@ -466,8 +471,8 @@ def patch_seen_keys(patch):
             keys.append(value)
     return keys
 
-def fetch_patch_updates():
-    steam_events = fetch_steam_event_patches()
+async def fetch_patch_updates_async():
+    steam_events = await fetch_steam_event_patches_async()
     return merge_patch_updates(steam_events), "Steam Events"
 
 async def get_steamdb_patch_channel():
@@ -679,7 +684,7 @@ async def run_steamdb_patch_check(manual=False):
         return f"Khong tim thay kenh Steam Events ID {STEAMDB_PATCH_CHANNEL_ID}."
 
     try:
-        patches, source = await asyncio.to_thread(fetch_patch_updates)
+        patches, source = await fetch_patch_updates_async()
     except (urllib.error.URLError, TimeoutError) as e:
         log_event("steamdb_check", f"Loi ket noi Steam Events: {e}", "error")
         return f"Loi ket noi Steam Events: {e}"
