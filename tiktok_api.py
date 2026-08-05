@@ -1,8 +1,7 @@
 """tiktok_api.py - Goi API tikwm de lay link TikTok/Douyin khong logo.
 
-Thuan urllib, khong phu thuoc discord/flask. Dung chung boi:
-- downloader.py (bot: gui thang vao kenh Discord)
-- web.py (dashboard: tai ve may qua trinh duyet)
+Thuan urllib, khong phu thuoc discord/flask. Dung boi web.py
+(dashboard: tai ve may qua trinh duyet).
 """
 import json as _json
 import re
@@ -41,6 +40,16 @@ def http_get(url, timeout=45):
     req = urllib.request.Request(url, headers=HTTP_HEADERS)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read()
+
+
+def http_open(url, timeout=45):
+    """Mo ket noi va tra ve response file-like de stream theo chunk (caller phai close).
+
+    Dung cho proxy download tren dashboard: tranh doc ca video (co the >100MB) vao RAM.
+    resp.headers co the doc Content-Length de forward cho client.
+    """
+    req = urllib.request.Request(url, headers=HTTP_HEADERS)
+    return urllib.request.urlopen(req, timeout=timeout)
 
 
 def expand_url(url, timeout=15):

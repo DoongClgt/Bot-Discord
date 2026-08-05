@@ -4,15 +4,15 @@ Bot Discord dùng để quản lý spam trap, xoá tin nhắn theo điều kiệ
 
 ## Tính Năng Chính
 
-- Dashboard web chạy bằng Flask, theme Discord, có sidebar: Tổng quan (status + sparkline CPU/RAM + tác vụ nhanh), Cấu hình, Steam Watcher, Tải TikTok (tải video/ảnh về máy), Log gần đây, Ban log (lịch sử ban + tải file), Tickets, Version. Save Config tự restart bot, log timestamp UTC+7.
+- Dashboard web chạy bằng Flask, theme Discord, có sidebar: Tổng quan (status + sparkline CPU/RAM + tác vụ nhanh), Cấu hình, Steam Watcher, Tải TikTok (tải video/ảnh về máy), Log gần đây, Ban log (lịch sử ban + tải file), Tickets, Version. Save Config tự restart bot, log timestamp UTC+7. `data/bot_events.log` tự rotate khi vượt 5MB (giữ 1 bản `.1`); API log/ban log đọc tail file thay vì load cả file.
 - Slash command và text command cho Discord.
-- Spam trap: ai chat vào kênh bẫy là bị ban luôn (role miễn trừ chỉ bị xoá tin nhắn), có bộ đếm "mít tơ bít đã ban" tự cập nhật trong cả 2 kênh bẫy.
+- Spam trap: ai chat vào kênh bẫy là bị ban luôn (role miễn trừ chỉ bị xoá tin nhắn), có bộ đếm "mít tơ bít đã ban" tự cập nhật trong mọi kênh bẫy (edit message bộ đếm được gộp ~2s/lần để không dính rate-limit khi bị flood).
 - Ghi log mọi lượt ban (kể cả admin ban tay) vào thread `BAN_LOG_THREAD_ID` kèm thông tin audit log.
 - Auto-delete: xoá embed/tin nhắn theo user ID và từ khoá cấu hình; có thể giới hạn theo category/loại trừ kênh.
 - Tự động cấp role cho thành viên mới khi vào server (nếu đã có role thì bỏ qua).
 - Steam watcher: theo dõi patch/update game bằng Steam Events.
 - Quản lý danh sách game bằng lệnh `/game add`, `/game remove`, `/game list`, `/game help`.
-- Tải video/ảnh TikTok & Douyin không logo **qua dashboard** (trang "Tải TikTok"). *(Lệnh `/tiktok` trong Discord hiện đã tắt.)*
+- Tải video/ảnh TikTok & Douyin không logo **qua dashboard** (trang "Tải TikTok").
 
 ## Cài Đặt Trên VPS
 
@@ -183,11 +183,11 @@ Ghi chú:
 
 ## Tải TikTok / Douyin (qua dashboard)
 
-- Mở trang **Tải TikTok** ở sidebar, dán link TikTok hoặc Douyin rồi bấm **Lấy video** — dashboard hiện preview (ảnh bìa, tiêu đề, tác giả) và nút tải video/ảnh **không logo về thẳng máy** qua trình duyệt. API: `POST /api/tiktok/resolve`, `GET /api/tiktok/download`.
+- Mở trang **Tải TikTok** ở sidebar, dán link TikTok hoặc Douyin rồi bấm **Lấy video** — dashboard hiện preview (ảnh bìa, tiêu đề, tác giả) và nút tải video/ảnh **không logo về thẳng máy** qua trình duyệt. Server stream file từ CDN theo chunk 64KB nên video lớn (>150MB Douyin 4K) cũng không tốn RAM. API: `POST /api/tiktok/resolve`, `GET /api/tiktok/download`.
 - Dùng API `tikwm.com` — không cần cài thêm gì (không yt-dlp/ffmpeg).
 - File tải về đặt tên theo **tiêu đề clip (bỏ dấu, bỏ emoji/chữ Hán, cách nhau bằng `_`) + ID video** (vd `Tieu_de_clip_7660736561704717620.mp4`) để tránh trùng và lỗi encoding. Tên gắn sẵn ở client nên không phụ thuộc header server (khỏi bị Cloudflare/proxy làm hỏng thành `download.mp4`).
 - Link Douyin: tikwm không hỗ trợ nên tự parse thẳng từ trang share Douyin, lấy bản không logo.
-- **Lệnh `/tiktok` trong Discord đã tắt** (không import `downloader.py` trong `bot.py`). Muốn bật lại: bỏ comment dòng `import downloader` rồi restart bot.
+- Tải **chỉ qua dashboard** — không còn lệnh `/tiktok` trong Discord.
 
 ## Spam Trap
 

@@ -228,8 +228,41 @@ async def sync_spam_trap_ban_counter(guild: discord.Guild, increment: bool = Fal
 
     save_spam_trap_state(state)
 
-async def update_spam_trap_ban_counter(guild: discord.Guild):
-    await sync_spam_trap_ban_counter(guild, increment=True)
+def increment_spam_trap_ban_count():
+    """Tăng ban_count ngay trong state file (không chờ Discord API)."""
+    state = load_spam_trap_state()
+    state["ban_count"] = int(state.get("ban_count", 0) or 0) + 1
+    save_spam_trap_state(state)
+
+# Debounce edit message bộ đếm: khi bị flood spam, mỗi ban chỉ tăng state;
+# task gộp lại và edit message 1 lần sau 2s thay vì fetch+edit mọi kênh bẫy
+# ngay mỗi ban -> tránh dính rate-limit edit message của Discord.
+_counter_sync_pending: set = set()  # guild_id đang chờ sync message bộ đếm
+_counter_sync_task = None
+
+def schedule_spam_trap_counter_sync(guild: discord.Guild):
+    global _counter_sync_task
+    _counter_sync_pending.add(guild.id)
+    if _counter_sync_task is None or _counter_sync_task.done():
+        _counter_sync_task = asyncio.create_task(_flush_spam_trap_counter_sync())
+
+async def _flush_spam_trap_counter_sync():
+    while _counter_sync_pending:
+        await asyncio.sleep(2)
+        pending = set(_counter_sync_pending)
+        _counter_sync_pending.clear()
+        for guild_id in pending:
+            guild = bot.get_guild(guild_id)
+            if not guild:
+                continue
+            try:
+                await sync_spam_trap_ban_counter(guild, increment=False)
+            except Exception as e:
+                log_event("spam_trap", f"Loi sync ban counter guild {guild_id}: {e}", "warn")
+
+# Dòng ban log luôn bắt đầu bằng {"time": "..."} vì append_ban_log ghi 'time' trước tiên
+# (json.dumps giữ nguyên thứ tự key). Giá trị time không chứa dấu " nên [^"]* là đủ.
+_BAN_LOG_TIME_PREFIX_RE = re.compile(r'^\{"time": "[^"]*", ')
 
 def count_ban_log_entries():
     """Đếm số ban spam trap (unique) trong ban_log.jsonl, bỏ qua dòng trùng (chỉ khác 'time').
@@ -237,6 +270,11 @@ def count_ban_log_entries():
     Ban do admin tự tay thực hiện (source='admin') KHÔNG được tính: bộ đếm trong kênh bẫy
     là 'số mít tơ bít đã ban', không phải tổng số ban của server. Bản ghi cũ không có
     'source' đều là ban spam trap.
+
+    Perf: dòng đúng dạng chuẩn thì key dedup = dòng gốc cắt trường time bằng regex,
+    không cần json.loads + json.dumps từng dòng. Mọi dòng đều do append_ban_log ghi
+    nên thứ tự key ổn định; check '"source": "admin"' bằng substring an toàn vì nếu
+    chuỗi này nằm TRONG giá trị (vd message_content) thì dấu " đã bị escape thành \\".
     """
     if not os.path.exists(BAN_LOG_FILE):
         return 0
@@ -248,17 +286,23 @@ def count_ban_log_entries():
                 raw = line.strip()
                 if not raw:
                     continue
-                try:
-                    rec = _json.loads(raw)
-                except Exception:
-                    count += 1
-                    continue
-                if rec.get('source') == 'admin':
-                    continue
-                key = _json.dumps(
-                    {k: v for k, v in rec.items() if k != 'time'},
-                    sort_keys=True, ensure_ascii=False,
-                )
+                key, matched = _BAN_LOG_TIME_PREFIX_RE.subn('{', raw, count=1)
+                if matched:
+                    if '"source": "admin"' in key:
+                        continue
+                else:
+                    # Dòng không đúng dạng chuẩn -> fallback parse như cũ
+                    try:
+                        rec = _json.loads(raw)
+                    except Exception:
+                        count += 1
+                        continue
+                    if rec.get('source') == 'admin':
+                        continue
+                    key = _json.dumps(
+                        {k: v for k, v in rec.items() if k != 'time'},
+                        sort_keys=True, ensure_ascii=False,
+                    )
                 if key in seen:
                     continue
                 seen.add(key)
@@ -335,7 +379,8 @@ async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audi
             reason=audit_reason,
             delete_message_seconds=SPAM_TRAP_BAN_DELETE_SECONDS,
         )
-        await update_spam_trap_ban_counter(guild)
+        increment_spam_trap_ban_count()
+        schedule_spam_trap_counter_sync(guild)
         log_event("spam_trap_ban", f"Da ban {author.id}: {reason_text}")
         append_ban_log({
             "source": "spam_trap",

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, send_file, abort
+from flask import Flask, render_template, jsonify, request, send_file, abort, Response, stream_with_context
 import datetime
 import io
 import json
@@ -8,6 +8,7 @@ import os
 import sys
 import dotenv
 import time
+import urllib.parse
 import zipfile
 import tiktok_api
 
@@ -36,6 +37,9 @@ BOT_SERVICE = os.getenv("BOT_SYSTEMD_SERVICE", "bot-discord-bot.service")
 CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == "nt" else 0
 _bot_status_cache = {"checked_at": 0, "pid": None}
 _metrics_proc_cache = {"pid": None, "proc": None}
+# Hằng số hệ thống: /api/metrics bị poll mỗi 2s, không cần hỏi lại psutil mỗi lần
+TOTAL_MEM_BYTES = psutil.virtual_memory().total
+CPU_COUNT = psutil.cpu_count(logical=True) or 1
 
 def run_git_command(*args):
     try:
@@ -158,14 +162,52 @@ def normalize_log_time(value):
             pass
     return text
 
-def read_recent_json_lines(path, limit=100):
+def tail_lines(path, limit):
+    """Đọc `limit` dòng cuối file bằng seek từ cuối — không load cả file vào RAM.
+
+    bot_events.log/ban_log.jsonl chỉ append nên có thể rất lớn; dashboard poll
+    liên tục nên phải đọc tail thay vì readlines() toàn bộ.
+    """
     if not os.path.exists(path):
         return []
     try:
-        with open(path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()[-limit:]
+        with open(path, 'rb') as f:
+            f.seek(0, os.SEEK_END)
+            pos = f.tell()
+            data = b''
+            while pos > 0 and data.count(b'\n') <= limit:
+                read_size = min(65536, pos)
+                pos -= read_size
+                f.seek(pos)
+                data = f.read(read_size) + data
     except OSError:
         return []
+    return [line.decode('utf-8', 'replace') for line in data.splitlines()[-limit:]]
+
+def count_lines(path):
+    """Đếm số dòng bằng chunk nhị phân, RAM cố định (không splitlines cả file)."""
+    total = 0
+    last_char = b'\n'
+    try:
+        with open(path, 'rb') as f:
+            while True:
+                chunk = f.read(1 << 20)
+                if not chunk:
+                    break
+                total += chunk.count(b'\n')
+                last_char = chunk[-1:]
+    except OSError:
+        return 0
+    if last_char != b'\n':
+        total += 1  # dòng cuối không kết thúc bằng \n vẫn tính là 1 dòng
+    return total
+
+def read_recent_json_lines(path, limit=100):
+    lines = tail_lines(path, limit)
+    # Sau khi bot rotate log (bot_events.log -> .1), file hiện tại có thể chưa đủ
+    # `limit` dòng -> lấy bù phần cuối của bản rotate để dashboard không "mất" log cũ.
+    if len(lines) < limit:
+        lines = tail_lines(f"{path}.1", limit - len(lines)) + lines
 
     items = []
     for line in lines:
@@ -350,7 +392,6 @@ def get_bot_metrics():
     try:
         cpu = proc.cpu_percent(interval=None)
         mem = proc.memory_info().rss
-        total_mem = psutil.virtual_memory().total
         create_time = proc.create_time()
         threads = proc.num_threads()
     except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -362,10 +403,10 @@ def get_bot_metrics():
         "cpu_percent": round(cpu, 1),
         "rss_bytes": int(mem),
         "rss_mb": round(mem / (1024 * 1024), 1),
-        "rss_percent": round(mem / total_mem * 100, 2) if total_mem else 0,
+        "rss_percent": round(mem / TOTAL_MEM_BYTES * 100, 2) if TOTAL_MEM_BYTES else 0,
         "uptime_sec": max(0, int(time.time() - create_time)),
         "threads": threads,
-        "cpu_count": psutil.cpu_count(logical=True) or 1,
+        "cpu_count": CPU_COUNT,
     }
 
 @app.route('/api/metrics', methods=['GET'])
@@ -379,14 +420,11 @@ def ban_log_list():
     limit = min(max(limit, 1), 20000)
     if not os.path.exists(BAN_LOG_FILE):
         return jsonify({"count": 0, "items": []})
-    try:
-        with open(BAN_LOG_FILE, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-    except OSError:
-        return jsonify({"count": 0, "items": []})
+    lines = tail_lines(BAN_LOG_FILE, limit)
+    total_lines = count_lines(BAN_LOG_FILE)
 
     items = []
-    for line in lines[-limit:]:
+    for line in lines:
         line = line.strip()
         if not line:
             continue
@@ -395,7 +433,7 @@ def ban_log_list():
         except json.JSONDecodeError:
             items.append({"time": "", "raw": line})
     items.reverse()
-    return jsonify({"count": len(items), "total_lines": len(lines), "items": items})
+    return jsonify({"count": len(items), "total_lines": total_lines, "items": items})
 
 @app.route('/api/tickets/transcripts', methods=['GET'])
 def tickets_transcripts_list():
@@ -499,22 +537,36 @@ def tiktok_download():
             images = media["images"]
             if not images or idx >= len(images):
                 return jsonify({"success": False, "message": "Không tìm thấy ảnh."}), 404
-            content = tiktok_api.http_get(images[idx])
+            media_url = images[idx]
             mimetype, download_name = 'image/jpeg', f"{name_base}_{idx + 1}.jpg"
         else:
-            video_url = media["video_url"]
-            if not video_url:
+            media_url = media["video_url"]
+            if not media_url:
                 return jsonify({"success": False, "message": "Không tìm thấy link video."}), 404
-            content = tiktok_api.http_get(video_url)
             mimetype, download_name = 'video/mp4', f"{name_base}.mp4"
+        # Mo stream truoc khi tra Response de loi ket noi CDN van tra duoc JSON 502
+        upstream = tiktok_api.http_open(media_url)
     except Exception as e:
         return jsonify({"success": False, "message": f"Không tải được: {e}"}), 502
-    return send_file(
-        io.BytesIO(content),
-        mimetype=mimetype,
-        as_attachment=True,
-        download_name=download_name,
-    )
+
+    def generate():
+        # Stream theo chunk 64KB: RAM khong phinh theo kich thuoc video (Douyin 4K co the >150MB)
+        try:
+            while True:
+                chunk = upstream.read(65536)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            upstream.close()
+
+    headers = {
+        "Content-Disposition": f"attachment; filename*=UTF-8''{urllib.parse.quote(download_name)}",
+    }
+    content_length = upstream.headers.get('Content-Length')
+    if content_length and str(content_length).isdigit():
+        headers["Content-Length"] = content_length
+    return Response(stream_with_context(generate()), mimetype=mimetype, headers=headers)
 
 
 @app.route('/api/ban_log/download', methods=['GET'])

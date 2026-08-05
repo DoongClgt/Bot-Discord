@@ -108,6 +108,18 @@ UTC7 = datetime.timezone(datetime.timedelta(hours=7))
 def now_utc7_string():
     return datetime.datetime.now(datetime.timezone.utc).astimezone(UTC7).strftime("%d-%m-%Y %H:%M:%S UTC+7")
 
+# bot_events.log chỉ append, không có cơ chế dọn -> rotate khi vượt 5MB, giữ 1 bản .1
+# (dashboard /api/logs đọc bù từ bản .1 khi file hiện tại chưa đủ số dòng).
+BOT_EVENTS_MAX_BYTES = 5 * 1024 * 1024
+
+def _rotate_bot_events_if_needed():
+    try:
+        if os.path.getsize(BOT_EVENTS_FILE) < BOT_EVENTS_MAX_BYTES:
+            return
+        os.replace(BOT_EVENTS_FILE, f"{BOT_EVENTS_FILE}.1")
+    except OSError:
+        pass
+
 def log_event(event, message, level="info", **extra):
     payload = {
         "time": now_utc7_string(),
@@ -117,6 +129,7 @@ def log_event(event, message, level="info", **extra):
     }
     payload.update(extra)
     try:
+        _rotate_bot_events_if_needed()
         with open(BOT_EVENTS_FILE, 'a', encoding='utf-8') as f:
             f.write(_json.dumps(payload, ensure_ascii=False) + "\n")
     except Exception:

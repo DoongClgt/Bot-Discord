@@ -6,15 +6,15 @@ Vietnamese setup guide: [README_VI.md](README_VI.md)
 
 ## Features
 
-- Flask dashboard with Discord-themed sidebar UI (Overview with CPU/RAM sparkline + quick actions, Settings, Steam Watcher, TikTok downloader, Logs, Ban log (history + download), Tickets, Version). Save Config auto-restarts the bot. UTC+7 timestamps. HTML/CSS/JS split across `templates/index.html`, `static/dashboard.css`, `static/dashboard.js`. Ban events are appended to `data/ban_log.jsonl` and downloadable via `/api/ban_log/download`.
+- Flask dashboard with Discord-themed sidebar UI (Overview with CPU/RAM sparkline + quick actions, Settings, Steam Watcher, TikTok downloader, Logs, Ban log (history + download), Tickets, Version). Save Config auto-restarts the bot. UTC+7 timestamps. HTML/CSS/JS split across `templates/index.html`, `static/dashboard.css`, `static/dashboard.js`. Ban events are appended to `data/ban_log.jsonl` and downloadable via `/api/ban_log/download`. `data/bot_events.log` auto-rotates at 5MB (one `.1` backup kept); log/ban-log APIs tail-read files instead of loading them whole.
 - Discord slash commands and text fallback commands.
-- Spam trap flow: anyone who chats in a configured trap channel is banned immediately (excluded roles only get their message deleted), with a self-updating ban counter in both trap channels.
+- Spam trap flow: anyone who chats in a configured trap channel is banned immediately (excluded roles only get their message deleted), with a self-updating ban counter in every trap channel (counter-message edits are debounced ~2s so ban floods don't hit Discord's edit rate limit).
 - Ban audit log: every ban (including manual admin bans) is logged into `BAN_LOG_THREAD_ID` with audit info, and appended to `data/ban_log.jsonl` with a `source` field (`spam_trap` or `admin`) plus `banned_by_id` / `banned_by_name` / `banned_by_display_name`. The spam-trap counter ignores `admin` rows.
 - Auto-delete embeds by configured target user, keywords, category, and channel filters.
 - Auto-assign a default role to new members joining the server (skipped if they already have it).
 - Steam patch/update watcher using Steam Events with interval (minutes or hours) or scheduled hours.
 - Manage watched Steam games with `/game add`, `/game remove`, `/game list`, and `/game help`.
-- Download watermark-free TikTok & Douyin videos/photos from the **dashboard** ("Tải TikTok" page). *(The in-Discord `/tiktok` command is currently disabled.)*
+- Download watermark-free TikTok & Douyin videos/photos from the **dashboard** ("Tải TikTok" page).
 
 ## Quick Start
 
@@ -150,11 +150,11 @@ Text command aliases also available: `/online`, `/status`, `/patchcheck`, `/sdbc
 
 ## TikTok / Douyin Downloader (dashboard)
 
-- Open the **Tải TikTok** page in the sidebar, paste a TikTok or Douyin link, click **Lấy video** — it shows a preview (cover, title, author) and download buttons that save the **watermark-free** video/images straight to your computer via the browser. Endpoints: `POST /api/tiktok/resolve`, `GET /api/tiktok/download`; tikwm API core in `tiktok_api.py`.
+- Open the **Tải TikTok** page in the sidebar, paste a TikTok or Douyin link, click **Lấy video** — it shows a preview (cover, title, author) and download buttons that save the **watermark-free** video/images straight to your computer via the browser. The server streams the file from the CDN in 64KB chunks (no size limit, near-zero RAM overhead even for >150MB 4K Douyin videos). Endpoints: `POST /api/tiktok/resolve`, `GET /api/tiktok/download`; tikwm API core in `tiktok_api.py`.
 - Backed by the `tikwm.com` API — no extra dependency (no yt-dlp/ffmpeg).
 - Saved files are named after the clip title (diacritics/emoji/CJK stripped, words joined by `_`) + video id (e.g. `Clip_title_7660736561704717620.mp4`) to avoid collisions and encoding issues. The name is set client-side (via the `download` attribute), so it survives proxies that strip `Content-Disposition` (otherwise the browser would fall back to `download.mp4`).
 - Douyin links: tikwm doesn't support them, so it parses the Douyin share page directly and picks the watermark-free source.
-- **The in-Discord `/tiktok` command is disabled** (`downloader.py` is not imported in `bot.py`). To re-enable: uncomment the `import downloader` line and restart the bot.
+- Downloading is **dashboard-only** — there is no in-Discord `/tiktok` command.
 
 ## Auto Role For New Members
 
