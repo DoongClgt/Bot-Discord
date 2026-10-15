@@ -721,6 +721,17 @@ async def run_steamdb_patch_check(manual=False):
         return f"Patch/update gan nhat tu {source} da duoc gui roi."
 
     patches_to_send = (patches[:1] if manual_latest else new_patches[:STEAM_WATCHER_SEND_LIMIT])
+
+    # Ghi state TRUOC khi gui: neu gui xong moi ghi ma ghi loi (data/ khong co quyen ghi, het o dia...)
+    # thi lan check sau van coi tin do la moi -> gui lai + ping lap vo han moi chu ky.
+    state["seen"] = list(dict.fromkeys(current_seen_keys + seen))[:500]
+    state["seeded"] = True
+    try:
+        save_steamdb_patch_state(state)
+    except OSError as e:
+        log_event("steamdb_check", f"Khong ghi duoc {STEAMDB_PATCH_FILE}: {e}. Bo qua gui de tranh lap tin.", "error")
+        return f"Khong ghi duoc state Steam watcher ({e}); bo qua gui de tranh lap tin."
+
     failed_announcements = 0
     for patch in patches_to_send:
         try:
@@ -729,10 +740,6 @@ async def run_steamdb_patch_check(manual=False):
             failed_announcements += 1
             log_event("steamdb_check", f"Khong gui duoc embed patch {patch.get('id')}: {e}", "error")
         await asyncio.sleep(0.2 if manual else 1)
-
-    state["seen"] = list(dict.fromkeys(current_seen_keys + seen))[:500]
-    state["seeded"] = True
-    save_steamdb_patch_state(state)
 
     if manual_latest:
         sent_count = len(patches_to_send) - failed_announcements
@@ -783,7 +790,13 @@ async def check_steamdb_patches():
     wait_seconds = seconds_until_next_steamdb_check()
     print(f"SteamDB watcher: lan check tiep theo sau {int(wait_seconds)} giay.")
     await asyncio.sleep(wait_seconds)
-    result = await run_steamdb_patch_check(manual=False)
+    try:
+        result = await run_steamdb_patch_check(manual=False)
+    except Exception as e:
+        # Khong de exception lot ra tasks.loop: OSError bi tasks.loop (reconnect=True) nuot im lang
+        # roi chay lai vong lap -> loi bi giau, khong ai biet watcher dang hong.
+        log_event("steamdb_check", f"Loi watcher: {e!r}", "error")
+        result = f"Loi watcher: {e!r}"
     if result:
         print(f"SteamDB watcher: {result}")
 

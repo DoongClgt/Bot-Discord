@@ -1,8 +1,10 @@
 from flask import Flask, render_template, jsonify, request, send_file, abort, Response, stream_with_context
 import datetime
+import heapq
 import io
 import json
 import psutil
+import shutil
 import subprocess
 import os
 import sys
@@ -412,6 +414,81 @@ def get_bot_metrics():
 @app.route('/api/metrics', methods=['GET'])
 def metrics():
     return jsonify(get_bot_metrics())
+
+# Quet dung luong de user (khong SSH duoc) tu tim thu lam day o. `du /` co the mat hang chuc giay
+# nen chi chay khi mo trang Version / bam "Quet lai", va cache ket qua.
+DISK_SCAN_CACHE_SECONDS = 300
+DISK_SCAN_TIMEOUT = 120
+_disk_scan_cache = {"at": 0, "data": None}
+
+def scan_dir_sizes(root='/', depth=2):
+    """`du -x` (khong vuot sang filesystem khac) toi `depth` cap. Tra None neu khong co du (Windows)."""
+    if os.name == 'nt' or not shutil.which('du'):
+        return None
+    try:
+        result = subprocess.run(
+            ['du', '-x', '-B1', f'-d{depth}', root],
+            capture_output=True,
+            text=True,
+            timeout=DISK_SCAN_TIMEOUT,
+        )
+    except Exception:
+        return None
+    # du tra exit code != 0 khi gap thu muc khong doc duoc nhung stdout van dung -> khong check returncode
+    entries = []
+    for line in result.stdout.splitlines():
+        size, _, path = line.partition('\t')
+        if not size.isdigit() or not path:
+            continue
+        rel = os.path.relpath(path, root)
+        entries.append({
+            "path": path,
+            "bytes": int(size),
+            "depth": 0 if rel == '.' else rel.count(os.sep) + 1,
+        })
+    return entries
+
+def largest_files(root, limit=15):
+    def walk():
+        for dirpath, _dirnames, filenames in os.walk(root):
+            for name in filenames:
+                path = os.path.join(dirpath, name)
+                try:
+                    if not os.path.islink(path):
+                        yield os.path.getsize(path), path
+                except OSError:
+                    pass
+    return [
+        {"path": os.path.relpath(path, root).replace(os.sep, '/'), "bytes": size}
+        for size, path in heapq.nlargest(limit, walk())
+    ]
+
+def get_disk_info():
+    usage = shutil.disk_usage(APP_ROOT)
+    dirs = scan_dir_sizes('/', 2)
+    return {
+        "total": usage.total,
+        "used": usage.used,
+        "free": usage.free,
+        "dirs_available": dirs is not None,
+        "top_level_dirs": sorted((d for d in dirs or [] if d["depth"] == 1), key=lambda d: d["bytes"], reverse=True)[:10],
+        "second_level_dirs": sorted((d for d in dirs or [] if d["depth"] == 2), key=lambda d: d["bytes"], reverse=True)[:15],
+        "largest_files": largest_files(APP_ROOT),
+        "checked_at": datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
+    }
+
+@app.route('/api/disk', methods=['GET'])
+def disk_info():
+    now = time.time()
+    if (
+        request.args.get('refresh') != '1'
+        and _disk_scan_cache["data"] is not None
+        and now - _disk_scan_cache["at"] < DISK_SCAN_CACHE_SECONDS
+    ):
+        return jsonify(_disk_scan_cache["data"])
+    data = get_disk_info()
+    _disk_scan_cache.update(at=now, data=data)
+    return jsonify(data)
 
 @app.route('/api/ban_log', methods=['GET'])
 def ban_log_list():

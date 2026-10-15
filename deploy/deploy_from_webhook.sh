@@ -101,8 +101,8 @@ else
   exit 1
 fi
 
-log "Compile bot.py core.py moderation.py steam.py tickets.py web.py"
-python3 -m py_compile bot.py core.py moderation.py steam.py tickets.py web.py
+log "Compile bot.py core.py moderation.py steam.py tickets.py maintenance.py web.py"
+python3 -m py_compile bot.py core.py moderation.py steam.py tickets.py maintenance.py web.py
 
 DASHBOARD_SYSTEMD_RESTART=0
 if systemctl cat bot-discord-bot.service >/dev/null 2>&1 && systemctl cat bot-discord-dashboard.service >/dev/null 2>&1; then

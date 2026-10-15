@@ -13,6 +13,7 @@ Vietnamese setup guide: [README_VI.md](README_VI.md)
 - Auto-delete embeds by configured target user, keywords, category, and channel filters.
 - Auto-assign a default role to new members joining the server (skipped if they already have it).
 - Steam patch/update watcher using Steam Events with interval (minutes or hours) or scheduled hours.
+- Self-maintenance for SSH-less VPS setups: stdout log rotation, stale `.tmp` cleanup, a low-disk alert, and a disk-usage breakdown on the dashboard.
 - Manage watched Steam games with `/game add`, `/game remove`, `/game list`, and `/game help`.
 - Download watermark-free TikTok & Douyin videos/photos from the **dashboard** ("Tải TikTok" page).
 
@@ -119,6 +120,10 @@ STEAMDB_PATCH_LIMIT='25'
 STEAM_WATCHER_MAX_AGE_DAYS='7'
 STEAM_FETCH_CONCURRENCY='8'   # parallel Steam requests when scanning many games (1-16)
 
+# VPS maintenance (maintenance.py)
+VPS_LOG_MAX_MB='20'           # rotate data/*_vps.log + deploy_webhook.log above this size
+DISK_FREE_WARN_GB='5'         # warn in GENERAL_LOG_CHANNEL_ID below this free space (0 = off)
+
 # Dashboard
 DASHBOARD_HOST='127.0.0.1'
 DASHBOARD_PORT='5000'
@@ -126,6 +131,18 @@ DASHBOARD_PUBLIC_URL=''
 ```
 
 Do not commit `.env`; use `.env.example` as the public template.
+
+The Steam watcher writes sent IDs to `data/steamdb_patches.json` *before* announcing. If that write fails (no write permission on `data/`, disk full...), it logs a `steamdb_check` error and skips sending instead of re-posting the same item every cycle.
+
+## VPS Maintenance
+
+Every 10 minutes the bot does three maintenance tasks itself (`maintenance.py`), so no SSH is needed:
+
+- **Log rotation**: when `data/bot_vps.log`, `data/web_vps.log` or `data/deploy_webhook.log` exceeds `VPS_LOG_MAX_MB`, the bot copies the last 1 MB to `.1` and truncates the original file in place.
+- **Temp-file cleanup**: it deletes `data/*.tmp` files older than 10 minutes. These are left behind when an atomic write dies midway.
+- **Low-disk warning**: it posts a warning to `GENERAL_LOG_CHANNEL_ID` when free disk space drops below `DISK_FREE_WARN_GB`, at most once every 6 hours.
+
+The dashboard **Version** page has a **Disk usage** card (`/api/disk`). It shows total, used and free space, the largest directories on `/` (levels 1 and 2, via `du -x`), and the largest files in the bot folder. Results are cached for 5 minutes; "Quét lại" forces a rescan.
 
 ## Commands
 
@@ -216,7 +233,7 @@ http://127.0.0.1:5000
 ## Verify
 
 ```bash
-python3 -m py_compile bot.py core.py moderation.py steam.py tickets.py web.py
+python3 -m py_compile bot.py core.py moderation.py steam.py tickets.py maintenance.py web.py
 ```
 
 ```bash

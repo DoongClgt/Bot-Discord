@@ -11,6 +11,7 @@ Bot Discord dùng để quản lý spam trap, xoá tin nhắn theo điều kiệ
 - Auto-delete: xoá embed/tin nhắn theo user ID và từ khoá cấu hình; có thể giới hạn theo category/loại trừ kênh.
 - Tự động cấp role cho thành viên mới khi vào server (nếu đã có role thì bỏ qua).
 - Steam watcher: theo dõi patch/update game bằng Steam Events.
+- Bảo trì VPS tự động: rotate log stdout, dọn file `.tmp` sót, cảnh báo khi ổ sắp đầy; dashboard xem được thư mục/file nào lớn.
 - Quản lý danh sách game bằng lệnh `/game add`, `/game remove`, `/game list`, `/game help`.
 - Tải video/ảnh TikTok & Douyin không logo **qua dashboard** (trang "Tải TikTok").
 
@@ -294,16 +295,32 @@ Ghi chú:
 - `STEAM_WATCHER_MAX_AGE_DAYS` lọc bỏ event cũ hơn N ngày (mặc định 7).
 - `STEAM_FETCH_CONCURRENCY` (mặc định 8, clamp 1–16): số request song song tới Steam khi quét nhiều game. Trước quét tuần tự nên càng nhiều game càng chậm; giờ quét song song có giới hạn nên thời gian check gần như không đổi khi thêm game.
 - Mỗi lần check chỉ đẩy tối đa 1 patch để tránh spam; phần còn lại được ghi nhớ.
+- Bot ghi danh sách tin đã gửi vào `data/steamdb_patches.json` **trước** khi gửi. Nếu không ghi được (thiếu quyền ghi `data/`, ổ đầy...) bot sẽ bỏ qua lượt gửi và log lỗi `steamdb_check` chứ không gửi lại cùng một tin ở mọi chu kỳ. Xem thêm mục "Bảo Trì VPS Tự Động".
 - `STEAMDB_PATCH_MENTION_USER_ID` ping một người; `STEAMDB_PATCH_MENTION_USER_IDS` ping nhiều người, cách nhau bằng dấu phẩy.
 - `STEAMDB_APP_IDS` hỗ trợ dạng `730,570` hoặc `730_Counter-Strike 2, 570_Dota 2`.
 - `/game add <SteamAppID>` lấy tên game từ Steam Store, ghi vào `.env`, rồi reload cấu hình.
 - Nếu bot chạy trên VPS, `/game add` cập nhật `.env` trên VPS, không cập nhật `.env` local.
 - Bot dùng Steam Events để lấy update. Mapping `event_type` của Steam Partner: `12` = SMALL UPDATE / PATCH NOTES, `13` = REGULAR UPDATE, `14` = MAJOR UPDATE. Bot cũng đọc thêm `event_type=28` nếu tiêu đề giống patch/update notes.
 
+## Bảo Trì VPS Tự Động
+
+Bot tự dọn dẹp VPS mỗi 10 phút (`maintenance.py`), không cần SSH:
+
+- Khi `data/bot_vps.log`, `data/web_vps.log` hoặc `data/deploy_webhook.log` vượt `VPS_LOG_MAX_MB` (mặc định 20 MB), bot giữ 1 MB cuối sang file `.1` rồi làm trống file gốc.
+- Xoá các file `data/*.tmp` sót lại hơn 10 phút (do lần ghi file bị chết giữa chừng, ví dụ lúc ổ đầy).
+- Khi ổ còn dưới `DISK_FREE_WARN_GB` (mặc định 5 GB), bot gửi cảnh báo vào kênh `GENERAL_LOG_CHANNEL_ID`, tối đa 6 giờ một lần. Đặt `0` để tắt.
+
+Dashboard → trang **Version** → card **Dung lượng ổ đĩa** hiện dung lượng tổng/đã dùng/còn trống, các thư mục lớn nhất trên `/` (cấp 1 và cấp 2) và các file lớn nhất trong thư mục bot. Dùng để tìm thứ làm đầy ổ. Kết quả cache 5 phút; bấm "Quét lại" để quét mới (có thể mất vài chục giây).
+
+```env
+VPS_LOG_MAX_MB='20'
+DISK_FREE_WARN_GB='5'
+```
+
 ## Kiểm Tra
 
 ```bash
-python3 -m py_compile bot.py core.py moderation.py steam.py tickets.py web.py
+python3 -m py_compile bot.py core.py moderation.py steam.py tickets.py maintenance.py web.py
 ```
 
 Nếu có Node.js, có thể kiểm tra JavaScript dashboard:

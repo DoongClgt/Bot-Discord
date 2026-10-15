@@ -24,6 +24,7 @@ from core import (
 import moderation
 import steam
 import tickets
+import maintenance
 from moderation import sync_spam_trap_ban_counter, SPAM_TRAP_CHANNEL_IDS, TARGET_USER_ID
 from steam import run_steamdb_patch_check, check_steamdb_patches, STEAMDB_PATCH_CHANNEL_ID
 from tickets import TicketPanelView, TicketActionsView
@@ -133,6 +134,8 @@ async def on_ready():
         check_ipc_commands.start()
     if STEAMDB_PATCH_CHANNEL_ID and not check_steamdb_patches.is_running():
         check_steamdb_patches.start()
+    if not maintenance.vps_maintenance_loop.is_running():
+        maintenance.vps_maintenance_loop.start()
     if not slash_commands_synced:
         try:
             for guild in bot.guilds:

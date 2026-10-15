@@ -110,7 +110,10 @@
         if (els.pageSubtitle) els.pageSubtitle.textContent = meta.subtitle || "";
 
         if (page === "logs") loadLogs();
-        if (page === "version") loadVersion();
+        if (page === "version") {
+            loadVersion();
+            loadDisk(false);
+        }
         if (page === "banlog") loadBanLog();
         if (page === "tickets") loadTickets();
     }
@@ -685,6 +688,60 @@
         }
     }
 
+    /* ── Disk usage ───────────────────────────────────────── */
+
+    function formatBytes(bytes) {
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let value = Number(bytes) || 0;
+        let i = 0;
+        while (value >= 1024 && i < units.length - 1) {
+            value /= 1024;
+            i++;
+        }
+        return `${value.toFixed(i >= 3 ? 1 : 0)} ${units[i]}`;
+    }
+
+    function renderSizeRows(id, items, emptyText) {
+        const body = document.getElementById(id);
+        if (!body) return;
+        body.innerHTML = "";
+        if (!items || !items.length) {
+            body.innerHTML = `<tr><td colspan="2" class="readonly-empty">${escapeHtml(emptyText)}</td></tr>`;
+            return;
+        }
+        items.forEach((item) => {
+            const row = document.createElement("tr");
+            setTextCell(row, item.path, "log-message");
+            setTextCell(row, formatBytes(item.bytes)).style.width = "110px";
+            body.appendChild(row);
+        });
+    }
+
+    let diskLoading = false;
+    async function loadDisk(refresh) {
+        if (diskLoading) return;
+        diskLoading = true;
+        setButtonBusy("btnReloadDisk", true, "Đang quét...");
+        try {
+            const res = await fetch("/api/disk" + (refresh ? "?refresh=1" : ""));
+            const info = await res.json();
+            const usedPct = info.total ? Math.round((info.used / info.total) * 100) : 0;
+            setText("diskTotal", formatBytes(info.total));
+            setText("diskUsed", `${formatBytes(info.used)} (${usedPct}%)`);
+            setText("diskFree", formatBytes(info.free));
+            setText("diskCheckedAt", info.checked_at);
+            const noDu = "Không có lệnh du trên máy này.";
+            renderSizeRows("diskTopDirs", info.top_level_dirs, info.dirs_available ? "Không có dữ liệu." : noDu);
+            renderSizeRows("diskSecondDirs", info.second_level_dirs, info.dirs_available ? "Không có dữ liệu." : noDu);
+            renderSizeRows("diskLargestFiles", info.largest_files, "Không có dữ liệu.");
+        } catch {
+            setText("diskCheckedAt", "Không quét được.");
+        } finally {
+            diskLoading = false;
+            setButtonBusy("btnReloadDisk", false, "Quét lại");
+        }
+    }
+
     /* ── Settings form ────────────────────────────────────── */
 
     function splitIds(value) {
@@ -999,6 +1056,7 @@
                 else if (action === "save-settings") saveSettings();
                 else if (action === "reload-settings") loadSettings();
                 else if (action === "reload-version") loadVersion();
+                else if (action === "reload-disk") loadDisk(true);
                 else if (action === "reload-logs") loadLogs();
                 else if (action === "reload-banlog") loadBanLog();
                 else if (action === "recount-ban-counter") sendRecountBanCounter();

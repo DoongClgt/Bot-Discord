@@ -552,6 +552,59 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="card" style="margin-top: 18px;">
+                        <div class="card-header">
+                            <h2 class="card-title">Dung lượng ổ đĩa</h2>
+                            <button id="btnReloadDisk" class="btn secondary" type="button" data-action="reload-disk">Quét lại</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="metric-grid">
+                                <div class="metric">
+                                    <div class="metric-label">Tổng</div>
+                                    <div class="metric-value small" id="diskTotal">-</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Đã dùng</div>
+                                    <div class="metric-value small" id="diskUsed">-</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Còn trống</div>
+                                    <div class="metric-value small" id="diskFree">-</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Quét lúc</div>
+                                    <div class="metric-value small" id="diskCheckedAt">-</div>
+                                </div>
+                            </div>
+                            <div class="form-grid" style="margin-top: 14px;">
+                                <div class="form-group full">
+                                    <label>Thư mục lớn nhất (cấp 1, trên /)</label>
+                                    <div class="log-table-wrap">
+                                        <table class="log-table">
+                                            <tbody id="diskTopDirs"><tr><td colspan="2" class="readonly-empty">Chưa quét.</td></tr></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="form-group full">
+                                    <label>Thư mục lớn nhất (cấp 2)</label>
+                                    <div class="log-table-wrap">
+                                        <table class="log-table">
+                                            <tbody id="diskSecondDirs"><tr><td colspan="2" class="readonly-empty">Chưa quét.</td></tr></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="form-group full">
+                                    <label>File lớn nhất trong thư mục bot</label>
+                                    <div class="log-table-wrap">
+                                        <table class="log-table">
+                                            <tbody id="diskLargestFiles"><tr><td colspan="2" class="readonly-empty">Chưa quét.</td></tr></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
             </div>
