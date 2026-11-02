@@ -62,10 +62,10 @@ SPAM_TRAP_BAN_DELETE_SECONDS = _parse_delete_seconds(
 # Quét bù sau khi ban: Discord xóa tin theo delete_message_seconds bất đồng bộ và hay sót
 # (spam dồn dập nhiều kênh, thread, tin cũ hơn cửa sổ xóa). Bot tự duyệt mọi kênh/thread,
 # tìm tin của người vừa bị ban trong SPAM_TRAP_SWEEP_SECONDS gần nhất và xóa (bulk delete).
-# Mặc định 1 ngày; 0 = tắt quét bù.
-SPAM_TRAP_SWEEP_SECONDS = _parse_delete_seconds(os.getenv('SPAM_TRAP_SWEEP_SECONDS', ''), 86400)
+# Mặc định 1 tiếng; 0 = tắt quét bù.
+SPAM_TRAP_SWEEP_SECONDS = _parse_delete_seconds(os.getenv('SPAM_TRAP_SWEEP_SECONDS', ''), 3600)
 # Số tin mới nhất tối đa duyệt mỗi kênh/thread trong một lượt quét.
-SPAM_TRAP_SWEEP_PER_CHANNEL = max(10, min(_parse_delete_seconds(os.getenv('SPAM_TRAP_SWEEP_PER_CHANNEL', ''), 200), 1000))
+SPAM_TRAP_SWEEP_PER_CHANNEL = max(10, min(_parse_delete_seconds(os.getenv('SPAM_TRAP_SWEEP_PER_CHANNEL', ''), 100), 1000))
 # Số lượt quét và khoảng nghỉ giữa các lượt (lượt 2 vét tin Discord chưa kịp xóa / tới trễ).
 SPAM_TRAP_SWEEP_PASSES = 2
 SPAM_TRAP_SWEEP_PASS_DELAY = 10
@@ -610,7 +610,7 @@ def _parse_user_id(raw) -> int:
 
 @bot.command(name='sweep', aliases=['quet'])
 @commands.has_permissions(manage_messages=True)
-async def sweep_user_command(ctx, user: str, hours: float = 24):
+async def sweep_user_command(ctx, user: str, hours: float = 24.0):
     """!sweep <user_id|@mention> [gio] - xoa moi tin cua user do trong N gio gan nhat o moi kenh."""
     user_id = _parse_user_id(user)
     if not user_id:
@@ -625,7 +625,7 @@ async def sweep_user_command(ctx, user: str, hours: float = 24):
 @app_commands.default_permissions(manage_messages=True)
 @app_commands.checks.has_permissions(manage_messages=True)
 @app_commands.describe(user_id='ID nguoi dung (ke ca da bi ban)', hours='So gio nhin lai, mac dinh 24, toi da 336 (14 ngay)')
-async def slash_sweep_user(interaction: discord.Interaction, user_id: str, hours: float = 24):
+async def slash_sweep_user(interaction: discord.Interaction, user_id: str, hours: float = 24.0):
     uid = _parse_user_id(user_id)
     if not uid:
         await interaction.response.send_message("ID nguoi dung khong hop le.", ephemeral=True)
