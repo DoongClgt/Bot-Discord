@@ -59,6 +59,19 @@ SPAM_TRAP_BAN_DELETE_SECONDS = _parse_delete_seconds(
     os.getenv('SPAM_TRAP_BAN_DELETE_SECONDS', ''), 3600
 )
 
+# Quét bù sau khi ban: Discord xóa tin theo delete_message_seconds bất đồng bộ và hay sót
+# (spam dồn dập nhiều kênh, thread, tin cũ hơn cửa sổ xóa). Bot tự duyệt mọi kênh/thread,
+# tìm tin của người vừa bị ban trong SPAM_TRAP_SWEEP_SECONDS gần nhất và xóa (bulk delete).
+# Mặc định 1 ngày; 0 = tắt quét bù.
+SPAM_TRAP_SWEEP_SECONDS = _parse_delete_seconds(os.getenv('SPAM_TRAP_SWEEP_SECONDS', ''), 86400)
+# Số tin mới nhất tối đa duyệt mỗi kênh/thread trong một lượt quét.
+SPAM_TRAP_SWEEP_PER_CHANNEL = max(10, min(_parse_delete_seconds(os.getenv('SPAM_TRAP_SWEEP_PER_CHANNEL', ''), 200), 1000))
+# Số lượt quét và khoảng nghỉ giữa các lượt (lượt 2 vét tin Discord chưa kịp xóa / tới trễ).
+SPAM_TRAP_SWEEP_PASSES = 2
+SPAM_TRAP_SWEEP_PASS_DELAY = 10
+# Giới hạn số kênh quét song song để không dính rate limit.
+_sweep_semaphore = asyncio.Semaphore(4)
+
 NEW_MEMBER_ROLE_ID_STR = os.getenv('NEW_MEMBER_ROLE_ID', '')
 NEW_MEMBER_ROLE_ID = int(NEW_MEMBER_ROLE_ID_STR) if NEW_MEMBER_ROLE_ID_STR.isdigit() else 0
 AUTO_ROLE_ON_JOIN_ENABLED = os.getenv('AUTO_ROLE_ON_JOIN_ENABLED', 'true').strip().lower() not in ('false', '0', 'no', 'off', '')
@@ -330,6 +343,122 @@ async def recount_and_sync_ban_counter():
 # In-memory chống xử lý ban trùng cho cùng (guild, user) khi gateway gửi MESSAGE_CREATE 2 lần
 _spam_trap_banning: set = set()
 
+
+def _sweepable_channels(guild: discord.Guild):
+    """Mọi kênh có thể chứa tin nhắn + thread đang mở (kể cả post forum) mà bot thấy được."""
+    me = guild.me
+    out = []
+    for ch in guild.channels:
+        if not isinstance(ch, (discord.TextChannel, discord.VoiceChannel, discord.StageChannel)):
+            continue
+        if me is not None and not ch.permissions_for(me).read_message_history:
+            continue
+        out.append(ch)
+    for th in guild.threads:
+        if me is not None and not th.permissions_for(me).read_message_history:
+            continue
+        out.append(th)
+    return out
+
+
+async def _sweep_channel_for_user(channel, user_id: int, cutoff: datetime.datetime) -> int:
+    """Xóa tin của user_id trong channel, chỉ xét tin mới hơn cutoff. Trả về số tin đã xóa."""
+    found = []
+    async with _sweep_semaphore:
+        try:
+            async for msg in channel.history(limit=SPAM_TRAP_SWEEP_PER_CHANNEL):
+                if msg.created_at < cutoff:
+                    break
+                if msg.author.id == user_id:
+                    found.append(msg)
+        except (discord.Forbidden, discord.NotFound):
+            return 0
+        except discord.HTTPException as e:
+            log_event("spam_trap_sweep", f"Loi doc lich su #{getattr(channel, 'name', channel.id)}: {e}", "warn")
+            return 0
+        if not found:
+            return 0
+
+        deleted = 0
+        # Bulk delete (toi da 100 tin/lan, tin < 14 ngay). Fallback xoa tung tin neu bulk loi.
+        bulk_ok = hasattr(channel, "delete_messages")
+        for i in range(0, len(found), 100):
+            chunk = found[i:i + 100]
+            if bulk_ok and len(chunk) > 1:
+                try:
+                    await channel.delete_messages(chunk, reason="Spam trap: don tin cua nguoi vua bi ban")
+                    deleted += len(chunk)
+                    continue
+                except (discord.Forbidden, discord.HTTPException):
+                    pass
+            for m in chunk:
+                try:
+                    await m.delete()
+                    deleted += 1
+                except discord.NotFound:
+                    deleted += 1  # Discord da xoa truoc
+                except (discord.Forbidden, discord.HTTPException):
+                    pass
+        return deleted
+
+
+async def sweep_banned_user_messages(guild: discord.Guild, user_id: int, passes: int = SPAM_TRAP_SWEEP_PASSES,
+                                     lookback_seconds: int = None, notify: bool = True) -> int:
+    """Quét mọi kênh/thread, xóa tin của user_id trong lookback_seconds gần nhất.
+
+    Chạy nhiều lượt: lượt sau vét tin Discord chưa kịp xóa hoặc gateway đưa tới trễ.
+    Dừng sớm khi một lượt (từ lượt 2) không xóa được gì.
+    """
+    lookback = SPAM_TRAP_SWEEP_SECONDS if lookback_seconds is None else lookback_seconds
+    if lookback <= 0:
+        return 0
+    cutoff = discord.utils.utcnow() - datetime.timedelta(seconds=lookback)
+    total = 0
+    per_pass = []
+    for p in range(max(1, passes)):
+        if p:
+            await asyncio.sleep(SPAM_TRAP_SWEEP_PASS_DELAY)
+        channels = _sweepable_channels(guild)
+        results = await asyncio.gather(
+            *(_sweep_channel_for_user(ch, user_id, cutoff) for ch in channels),
+            return_exceptions=True,
+        )
+        n = 0
+        for r in results:
+            if isinstance(r, int):
+                n += r
+            elif isinstance(r, Exception):
+                log_event("spam_trap_sweep", f"Loi quet kenh: {r}", "warn")
+        per_pass.append(n)
+        total += n
+        if p and n == 0:
+            break
+    log_event(
+        "spam_trap_sweep",
+        f"Quet bu user {user_id}: xoa {total} tin ({'+'.join(str(x) for x in per_pass)}) "
+        f"trong {len(_sweepable_channels(guild))} kenh/thread, cua so {lookback}s.",
+    )
+    if notify and total:
+        try:
+            await send_configured_ban_log(guild, f"🧹 Đã quét bù và xóa thêm {total} tin spam của <@{user_id}> ở các kênh khác.")
+        except Exception:
+            pass
+    return total
+
+
+def schedule_post_ban_sweep(guild: discord.Guild, user_id: int):
+    """Chạy quét bù ở background để không chặn luồng xử lý ban."""
+    if SPAM_TRAP_SWEEP_SECONDS <= 0:
+        return
+
+    async def _run():
+        try:
+            await sweep_banned_user_messages(guild, user_id)
+        except Exception as e:
+            log_event("spam_trap_sweep", f"Loi quet bu user {user_id}: {e}", "error")
+
+    asyncio.create_task(_run())
+
 def banned_by_fields(actor):
     """Thông tin người/bot thực hiện lệnh ban, dùng chung cho mọi dòng ban_log.
 
@@ -381,6 +510,8 @@ async def ban_spam_trap_suspect(message: discord.Message, reason_text: str, audi
         )
         increment_spam_trap_ban_count()
         schedule_spam_trap_counter_sync(guild)
+        # Discord xóa theo delete_message_seconds hay sót tin ở kênh khác -> bot tự quét bù.
+        schedule_post_ban_sweep(guild, author.id)
         log_event("spam_trap_ban", f"Da ban {author.id}: {reason_text}")
         append_ban_log({
             "source": "spam_trap",
@@ -472,6 +603,37 @@ async def slash_delete_target_keyword_messages(interaction: discord.Interaction,
     await interaction.response.defer(thinking=True, ephemeral=True)
     result = await delete_target_keyword_messages_in_categories(interaction.guild, limit)
     await interaction.followup.send(result, ephemeral=True)
+
+def _parse_user_id(raw) -> int:
+    m = re.search(r'\d{15,}', str(raw or ''))
+    return int(m.group(0)) if m else 0
+
+@bot.command(name='sweep', aliases=['quet'])
+@commands.has_permissions(manage_messages=True)
+async def sweep_user_command(ctx, user: str, hours: float = 24):
+    """!sweep <user_id|@mention> [gio] - xoa moi tin cua user do trong N gio gan nhat o moi kenh."""
+    user_id = _parse_user_id(user)
+    if not user_id:
+        await ctx.send("Can ID hoac @mention nguoi dung.")
+        return
+    seconds = int(max(0.1, min(hours, 24 * 14)) * 3600)
+    await ctx.send(f"Dang quet tin cua <@{user_id}> trong {hours:g} gio gan nhat...")
+    total = await sweep_banned_user_messages(ctx.guild, user_id, passes=1, lookback_seconds=seconds, notify=False)
+    await ctx.send(f"Da xoa {total} tin cua <@{user_id}>.")
+
+@bot.tree.command(name='sweep', description='Xoa moi tin cua mot nguoi dung (vd bi hack/da ban) trong N gio gan nhat o moi kenh')
+@app_commands.default_permissions(manage_messages=True)
+@app_commands.checks.has_permissions(manage_messages=True)
+@app_commands.describe(user_id='ID nguoi dung (ke ca da bi ban)', hours='So gio nhin lai, mac dinh 24, toi da 336 (14 ngay)')
+async def slash_sweep_user(interaction: discord.Interaction, user_id: str, hours: float = 24):
+    uid = _parse_user_id(user_id)
+    if not uid:
+        await interaction.response.send_message("ID nguoi dung khong hop le.", ephemeral=True)
+        return
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    seconds = int(max(0.1, min(hours, 24 * 14)) * 3600)
+    total = await sweep_banned_user_messages(interaction.guild, uid, passes=1, lookback_seconds=seconds, notify=False)
+    await interaction.followup.send(f"Da xoa {total} tin cua <@{uid}> trong {hours:g} gio gan nhat.", ephemeral=True)
 
 @bot.command(name='synccounter', aliases=['recount', 'recountban'])
 @commands.has_permissions(manage_messages=True)
