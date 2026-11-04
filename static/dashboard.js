@@ -122,6 +122,10 @@
         document.querySelectorAll(".nav-item").forEach((btn) => {
             btn.addEventListener("click", () => activatePage(btn.dataset.page));
         });
+        // Nút chuyển trang nằm trong nội dung (vd "Xem toàn bộ log" ở Tổng quan)
+        document.querySelectorAll("[data-nav]").forEach((btn) => {
+            btn.addEventListener("click", () => activatePage(btn.dataset.nav));
+        });
     }
 
     function bindSettingsTabs() {
@@ -396,33 +400,54 @@
         return td;
     }
 
+    function buildLogRow(item) {
+        const row = document.createElement("tr");
+        setTextCell(row, item.time || "-", "cell-mono");
+        const lvlCell = document.createElement("td");
+        const badge = document.createElement("span");
+        const level = String(item.level || "info").toLowerCase();
+        badge.className = "log-level " + level;
+        badge.textContent = level;
+        lvlCell.appendChild(badge);
+        row.appendChild(lvlCell);
+        setTextCell(row, item.event || "-", "cell-mono");
+        setTextCell(row, item.message || "", "log-message");
+        return row;
+    }
+
+    // Ledger "Sự kiện gần đây" ở trang Tổng quan: 8 dòng cuối, dùng chung dữ liệu với trang Log.
+    function renderRecentEvents(logs) {
+        const body = document.getElementById("recentEventsBody");
+        const stamp = document.getElementById("recentEventsStamp");
+        if (!body) return;
+        body.innerHTML = "";
+        if (!logs || !logs.length) {
+            body.innerHTML = '<tr><td colspan="4" class="readonly-empty">Chưa có sự kiện nào.</td></tr>';
+            if (stamp) stamp.textContent = "";
+            return;
+        }
+        logs.slice(0, 8).forEach((item) => body.appendChild(buildLogRow(item)));
+        if (stamp) stamp.textContent = "mới nhất " + (logs[0].time || "-");
+    }
+
     async function loadLogs() {
         const body = document.getElementById("logTableBody");
+        const stamp = document.getElementById("logsStamp");
         if (!body) return;
         try {
             const res = await fetch("/api/logs?limit=100");
             const logs = await res.json();
             body.innerHTML = "";
+            renderRecentEvents(logs);
+            if (stamp) stamp.textContent = logs.length ? logs.length + " dòng gần nhất" : "";
             if (!logs.length) {
                 body.innerHTML = '<tr><td colspan="4" class="readonly-empty">Chưa có log.</td></tr>';
                 return;
             }
-            logs.forEach((item) => {
-                const row = document.createElement("tr");
-                setTextCell(row, item.time || "-");
-                const lvlCell = document.createElement("td");
-                const badge = document.createElement("span");
-                const level = String(item.level || "info").toLowerCase();
-                badge.className = "log-level " + level;
-                badge.textContent = level;
-                lvlCell.appendChild(badge);
-                row.appendChild(lvlCell);
-                setTextCell(row, item.event || "-");
-                setTextCell(row, item.message || "", "log-message");
-                body.appendChild(row);
-            });
+            logs.forEach((item) => body.appendChild(buildLogRow(item)));
         } catch {
             body.innerHTML = '<tr><td colspan="4" class="readonly-empty">Không tải được log.</td></tr>';
+            renderRecentEvents([]);
         }
     }
 
@@ -452,7 +477,7 @@
             }
             items.forEach((it) => {
                 const row = document.createElement("tr");
-                setTextCell(row, it.time || "-");
+                setTextCell(row, it.time || "-", "cell-mono");
                 const userText = it.username
                     ? `${it.username}\n${it.user_id || ""}`
                     : it.user_id || "-";
@@ -501,11 +526,11 @@
             items.forEach((it) => {
                 const row = document.createElement("tr");
                 const num = String(it.ticket_number ?? "?").padStart(4, "0");
-                setTextCell(row, "#" + num);
+                setTextCell(row, "#" + num, "cell-mono");
                 const user = (it.user_name || "-") + (it.user_id ? `\n${it.user_id}` : "");
                 setTextCell(row, user, "log-message");
-                setTextCell(row, it.opened_at || "-");
-                setTextCell(row, it.closed_at || "-");
+                setTextCell(row, it.opened_at || "-", "cell-mono");
+                setTextCell(row, it.closed_at || "-", "cell-mono");
                 const closedBy = (it.closed_by_name || "-") + (it.closed_by ? `\n${it.closed_by}` : "");
                 setTextCell(row, closedBy, "log-message");
                 const td = document.createElement("td");
@@ -1107,7 +1132,6 @@
         setInterval(fetchStatus, 3000);
         setInterval(fetchMetrics, 2000);
         setInterval(loadLogs, 10000);
-        setInterval(updateUtc7NowDisplay, 30000);
         window.addEventListener("resize", () => {
             renderSpark(els.cpuSparkline, cpuBuffer, Math.max(100, lastCpuCount * 100));
             renderSpark(els.ramSparkline, ramBuffer);

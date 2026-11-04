@@ -26,3 +26,6 @@ env/
 
 .DS_Store
 Thumbs.db
+
+# Impeccable runtime (screenshots review); PRODUCT.md, DESIGN.md, .impeccable/surfaces/ thi commit
+.impeccable/review/

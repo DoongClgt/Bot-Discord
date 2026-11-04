@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
 </head>
 
@@ -23,7 +23,7 @@
                 <div class="brand-logo">D</div>
                 <div>
                     <div class="brand-name">Bot Dashboard</div>
-                    <div class="brand-sub">Discord moderator</div>
+                    <div class="brand-sub">Cánh Cụt Team</div>
                 </div>
             </div>
 
@@ -91,57 +91,82 @@
 
                 <!-- ── Page: dashboard ────────────────────────────── -->
                 <section id="page-dashboard" class="page active">
-                    <div class="metric-grid">
-                        <div class="metric accent">
-                            <div class="metric-label">Trạng thái</div>
-                            <div class="metric-value" id="metricStatus">Đang kiểm tra</div>
-                            <div class="metric-foot">Cập nhật mỗi 3s</div>
+                    <div class="release-row" aria-label="Trạng thái bot">
+                        <div class="stat stat-status">
+                            <div class="stat-label">Trạng thái</div>
+                            <div class="stat-value" id="metricStatus">Đang kiểm tra</div>
+                            <div class="stat-foot">cập nhật mỗi 3 giây</div>
                         </div>
-                        <div class="metric">
-                            <div class="metric-label">Process ID</div>
-                            <div class="metric-value" id="metricPid">-</div>
+                        <div class="stat">
+                            <div class="stat-label">Uptime</div>
+                            <div class="stat-value" id="metricUptime">-</div>
+                            <div class="stat-foot">từ lần bật gần nhất</div>
                         </div>
-                        <div class="metric">
-                            <div class="metric-label">Kênh đã cache</div>
-                            <div class="metric-value" id="metricChannels">-</div>
-                            <div class="metric-foot">Channels + categories + roles</div>
+                        <div class="stat">
+                            <div class="stat-label">Process ID</div>
+                            <div class="stat-value" id="metricPid">-</div>
+                            <div class="stat-foot">tiến trình bot trên máy chủ</div>
                         </div>
-                        <div class="metric">
-                            <div class="metric-label">Uptime bot</div>
-                            <div class="metric-value" id="metricUptime">-</div>
-                        </div>
-                    </div>
-
-                    <div class="chart-row">
-                        <div class="chart-card">
-                            <div class="chart-head">
-                                <span class="label">CPU bot process</span>
-                                <span class="value" id="cpuValue">-</span>
-                            </div>
-                            <svg class="spark" id="cpuSparkline" preserveAspectRatio="none"></svg>
-                        </div>
-                        <div class="chart-card green">
-                            <div class="chart-head">
-                                <span class="label">RAM bot process</span>
-                                <span class="value" id="ramValue">-</span>
-                            </div>
-                            <svg class="spark" id="ramSparkline" preserveAspectRatio="none"></svg>
+                        <div class="stat">
+                            <div class="stat-label">Kênh đã cache</div>
+                            <div class="stat-value" id="metricChannels">-</div>
+                            <div class="stat-foot">kênh, danh mục và role</div>
                         </div>
                     </div>
 
-                    <div class="card" style="margin-top: 18px;">
-                        <div class="card-header">
-                            <h2 class="card-title">Tác vụ nhanh</h2>
-                            <span class="card-note">Gửi lệnh qua IPC đến bot đang chạy</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="btn-row">
-                                <button id="btnRefreshChannels" class="btn" type="button" data-action="refresh-channels">Quét lại kênh</button>
-                                <button id="btnSteamDB" class="btn fuchsia" type="button" data-action="steamdb-check">Check Steam patch</button>
-                                <button class="btn secondary" type="button" data-action="open-env">Xem .env hiện tại</button>
+                    <div class="gauge-pair">
+                        <div class="gauge">
+                            <div class="gauge-head">
+                                <span class="gauge-label">CPU tiến trình bot</span>
+                                <span class="gauge-value" id="cpuValue">-</span>
                             </div>
+                            <svg class="spark" id="cpuSparkline" preserveAspectRatio="none" aria-hidden="true"></svg>
+                            <div class="gauge-foot">2 phút gần nhất</div>
+                        </div>
+                        <div class="gauge gauge-ram">
+                            <div class="gauge-head">
+                                <span class="gauge-label">RAM tiến trình bot</span>
+                                <span class="gauge-value" id="ramValue">-</span>
+                            </div>
+                            <svg class="spark" id="ramSparkline" preserveAspectRatio="none" aria-hidden="true"></svg>
+                            <div class="gauge-foot">2 phút gần nhất</div>
                         </div>
                     </div>
+
+                    <section class="ledger">
+                        <div class="ledger-head">
+                            <h2 class="ledger-title">Tác vụ nhanh</h2>
+                            <span class="stamp">gửi qua IPC tới bot đang chạy</span>
+                        </div>
+                        <div class="btn-row">
+                            <button id="btnRefreshChannels" class="btn" type="button" data-action="refresh-channels">Quét lại kênh</button>
+                            <button id="btnSteamDB" class="btn" type="button" data-action="steamdb-check">Check Steam patch</button>
+                            <button class="btn secondary" type="button" data-action="open-env">Xem .env hiện tại</button>
+                        </div>
+                    </section>
+
+                    <section class="ledger">
+                        <div class="ledger-head">
+                            <h2 class="ledger-title">Sự kiện gần đây</h2>
+                            <span class="stamp" id="recentEventsStamp"></span>
+                            <button class="btn ghost" type="button" data-page="logs" data-nav="logs">Xem toàn bộ log</button>
+                        </div>
+                        <div class="log-table-wrap">
+                            <table class="log-table stacked">
+                                <thead>
+                                    <tr>
+                                        <th class="col-time">Thời gian</th>
+                                        <th class="col-level">Mức</th>
+                                        <th class="col-event">Sự kiện</th>
+                                        <th>Nội dung</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentEventsBody">
+                                    <tr><td colspan="4" class="readonly-empty">Chưa có sự kiện nào.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                 </section>
 
                 <!-- ── Page: settings ─────────────────────────────── -->
@@ -155,12 +180,12 @@
                             <button type="button" class="settings-tab" data-settings-tab="logs" role="tab">Kênh log</button>
                         </div>
                         <div class="split-actions">
-                            <button type="button" class="btn success" data-action="save-settings">Lưu và restart bot</button>
+                            <button type="button" class="btn" data-action="save-settings">Lưu và restart bot</button>
                             <button type="button" class="btn secondary" data-action="reload-settings">Tải lại</button>
                         </div>
                     </div>
 
-                    <form id="settingsForm" autocomplete="off">
+                    <form id="settingsForm" class="kv-form" autocomplete="off">
                         <div class="settings-panel active" data-settings-panel="general">
                             <div class="card">
                                 <div class="card-header">
@@ -342,13 +367,13 @@
 
                 <!-- ── Page: steam ─────────────────────────────────── -->
                 <section id="page-steam" class="page">
-                    <form id="steamForm" autocomplete="off">
+                    <form id="steamForm" class="kv-form" autocomplete="off">
                         <div class="card">
                             <div class="card-header">
                                 <h2 class="card-title">Steam Watcher</h2>
                                 <div class="split-actions">
-                                    <button type="button" class="btn success" data-action="save-settings">Lưu và restart bot</button>
-                                    <button type="button" class="btn fuchsia" data-action="steamdb-check" id="btnSteamDBPanel">Check Steam patch ngay</button>
+                                    <button type="button" class="btn" data-action="save-settings">Lưu và restart bot</button>
+                                    <button type="button" class="btn" data-action="steamdb-check" id="btnSteamDBPanel">Check Steam patch ngay</button>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -398,7 +423,7 @@
                                 </div>
                             </div>
                             <div class="btn-row">
-                                <button class="btn success" type="button" id="btnTtResolve" data-action="tiktok-resolve">Lấy video</button>
+                                <button class="btn" type="button" id="btnTtResolve" data-action="tiktok-resolve">Lấy video</button>
                             </div>
                             <div id="ttResult" class="tt-result"></div>
                         </div>
@@ -410,16 +435,19 @@
                     <div class="card">
                         <div class="card-header">
                             <h2 class="card-title">Log gần đây</h2>
-                            <button class="btn secondary" type="button" data-action="reload-logs">Tải lại log</button>
+                            <div class="log-controls">
+                                <span class="card-note" id="logsStamp"></span>
+                                <button class="btn secondary" type="button" data-action="reload-logs">Tải lại log</button>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div class="log-table-wrap">
-                                <table class="log-table">
+                                <table class="log-table stacked">
                                     <thead>
                                         <tr>
-                                            <th style="width: 150px;">Thời gian</th>
-                                            <th style="width: 90px;">Mức</th>
-                                            <th style="width: 180px;">Sự kiện</th>
+                                            <th class="col-time">Thời gian</th>
+                                            <th class="col-level">Mức</th>
+                                            <th class="col-event">Sự kiện</th>
                                             <th>Nội dung</th>
                                         </tr>
                                     </thead>
@@ -440,8 +468,8 @@
                             <div class="log-controls">
                                 <span class="card-note" id="banLogTotal"></span>
                                 <button class="btn secondary" type="button" data-action="reload-banlog">Tải lại</button>
-                                <button id="btnRecountBan" class="btn fuchsia" type="button" data-action="recount-ban-counter">Cập nhật số đếm ban</button>
-                                <button class="btn" type="button" data-action="download-banlog">Tải file .jsonl</button>
+                                <button id="btnRecountBan" class="btn" type="button" data-action="recount-ban-counter">Cập nhật số đếm ban</button>
+                                <button class="btn secondary" type="button" data-action="download-banlog">Tải file .jsonl</button>
                             </div>
                         </div>
                         <div class="card-body">
@@ -449,10 +477,10 @@
                                 <table class="log-table">
                                     <thead>
                                         <tr>
-                                            <th style="width: 170px;">Thời gian</th>
-                                            <th style="width: 220px;">User</th>
-                                            <th style="width: 180px;">Nguồn</th>
-                                            <th style="width: 200px;">Kênh trigger</th>
+                                            <th class="col-time">Thời gian</th>
+                                            <th class="col-user">User</th>
+                                            <th class="col-source">Nguồn</th>
+                                            <th class="col-channel">Kênh trigger</th>
                                             <th>Lý do</th>
                                         </tr>
                                     </thead>
@@ -473,7 +501,7 @@
                             <div class="log-controls">
                                 <span class="card-note" id="ticketsTotal"></span>
                                 <button class="btn secondary" type="button" data-action="reload-tickets">Tải lại</button>
-                                <button class="btn" type="button" data-action="download-all-transcripts">Tải tất cả (.zip)</button>
+                                <button class="btn secondary" type="button" data-action="download-all-transcripts">Tải tất cả (.zip)</button>
                             </div>
                         </div>
                         <div class="card-body">
@@ -481,12 +509,12 @@
                                 <table class="log-table">
                                     <thead>
                                         <tr>
-                                            <th style="width: 80px;">#</th>
-                                            <th style="width: 220px;">User</th>
-                                            <th style="width: 170px;">Mở</th>
-                                            <th style="width: 170px;">Đóng</th>
-                                            <th style="width: 200px;">Đóng bởi</th>
-                                            <th style="width: 120px;">Tải</th>
+                                            <th class="col-num">#</th>
+                                            <th class="col-user">User</th>
+                                            <th class="col-time">Mở</th>
+                                            <th class="col-time">Đóng</th>
+                                            <th class="col-user">Đóng bởi</th>
+                                            <th class="col-dl">Tải</th>
                                         </tr>
                                     </thead>
                                     <tbody id="ticketsTableBody">
@@ -506,25 +534,25 @@
                             <button class="btn secondary" type="button" data-action="reload-version">Tải lại</button>
                         </div>
                         <div class="card-body">
-                            <div class="metric-grid">
-                                <div class="metric">
-                                    <div class="metric-label">Branch</div>
-                                    <div class="metric-value small" id="versionBranch">-</div>
+                            <div class="fact-row">
+                                <div class="fact">
+                                    <div class="fact-label">Branch</div>
+                                    <div class="fact-value" id="versionBranch">-</div>
                                 </div>
-                                <div class="metric">
-                                    <div class="metric-label">Commit</div>
-                                    <div class="metric-value small" id="versionCommit">-</div>
+                                <div class="fact">
+                                    <div class="fact-label">Commit</div>
+                                    <div class="fact-value" id="versionCommit">-</div>
                                 </div>
-                                <div class="metric">
-                                    <div class="metric-label">Trạng thái repo</div>
-                                    <div class="metric-value small" id="versionDirty">-</div>
+                                <div class="fact">
+                                    <div class="fact-label">Trạng thái repo</div>
+                                    <div class="fact-value" id="versionDirty">-</div>
                                 </div>
-                                <div class="metric">
-                                    <div class="metric-label">Python</div>
-                                    <div class="metric-value small" id="versionPython">-</div>
+                                <div class="fact">
+                                    <div class="fact-label">Python</div>
+                                    <div class="fact-value" id="versionPython">-</div>
                                 </div>
                             </div>
-                            <div class="form-grid" style="margin-top: 14px;">
+                            <div class="form-grid form-grid-stack">
                                 <div class="form-group full">
                                     <label>Thông điệp commit</label>
                                     <div class="readonly-list" id="versionSubject">-</div>
@@ -553,31 +581,31 @@
                         </div>
                     </div>
 
-                    <div class="card" style="margin-top: 18px;">
+                    <div class="card card-stack">
                         <div class="card-header">
                             <h2 class="card-title">Dung lượng ổ đĩa</h2>
                             <button id="btnReloadDisk" class="btn secondary" type="button" data-action="reload-disk">Quét lại</button>
                         </div>
                         <div class="card-body">
-                            <div class="metric-grid">
-                                <div class="metric">
-                                    <div class="metric-label">Tổng</div>
-                                    <div class="metric-value small" id="diskTotal">-</div>
+                            <div class="fact-row">
+                                <div class="fact">
+                                    <div class="fact-label">Tổng</div>
+                                    <div class="fact-value" id="diskTotal">-</div>
                                 </div>
-                                <div class="metric">
-                                    <div class="metric-label">Đã dùng</div>
-                                    <div class="metric-value small" id="diskUsed">-</div>
+                                <div class="fact">
+                                    <div class="fact-label">Đã dùng</div>
+                                    <div class="fact-value" id="diskUsed">-</div>
                                 </div>
-                                <div class="metric">
-                                    <div class="metric-label">Còn trống</div>
-                                    <div class="metric-value small" id="diskFree">-</div>
+                                <div class="fact">
+                                    <div class="fact-label">Còn trống</div>
+                                    <div class="fact-value" id="diskFree">-</div>
                                 </div>
-                                <div class="metric">
-                                    <div class="metric-label">Quét lúc</div>
-                                    <div class="metric-value small" id="diskCheckedAt">-</div>
+                                <div class="fact">
+                                    <div class="fact-label">Quét lúc</div>
+                                    <div class="fact-value" id="diskCheckedAt">-</div>
                                 </div>
                             </div>
-                            <div class="form-grid" style="margin-top: 14px;">
+                            <div class="form-grid form-grid-stack">
                                 <div class="form-group full">
                                     <label>Thư mục lớn nhất (cấp 1, trên /)</label>
                                     <div class="log-table-wrap">
